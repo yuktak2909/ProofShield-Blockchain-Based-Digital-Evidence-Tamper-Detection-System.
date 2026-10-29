@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom scrollbars for a cyber dashboard look */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0B0F19;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1F2937;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #00F0FF;
+}
+
+/* Flashing neon animation for alerts */
+@keyframes neon-pulse {
+  0%, 100% {
+    opacity: 1;
+    text-shadow: 0 0 4px #FF0055, 0 0 12px #FF0055;
+  }
+  50% {
+    opacity: 0.6;
+    text-shadow: 0 0 1px #FF0055, 0 0 2px #FF0055;
+  }
+}
+
+.animate-neon-pulse {
+  animation: neon-pulse 1.5s infinite;
+}
