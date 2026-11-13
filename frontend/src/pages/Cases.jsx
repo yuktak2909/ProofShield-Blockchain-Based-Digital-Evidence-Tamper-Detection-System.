@@ -10,7 +10,10 @@ import {
   ShieldCheck, 
   User, 
   Calendar,
-  AlertCircle
+  AlertCircle,
+  FileText,
+  History,
+  X
 } from "lucide-react";
 
 const Cases = () => {
@@ -39,7 +42,7 @@ const Cases = () => {
       const response = await axios.get("/api/cases");
       setCases(response.data);
     } catch (err) {
-      setError("Failed to fetch cases from Express API server.");
+      setError("Failed to fetch cases from API server.");
     } finally {
       setLoading(false);
     }
@@ -96,103 +99,114 @@ const Cases = () => {
   if (currentCase) {
     return (
       <div className="space-y-6">
-        {/* Breadcrumbs */}
+        {/* Breadcrumb */}
         <button
           onClick={() => navigate("/cases")}
-          className="flex items-center gap-2 text-sm text-cyber-muted hover:text-cyan-400 transition-colors"
+          className="flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-blue-700 transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Caseload List
+          Back to Case Catalog
         </button>
 
         {/* Case Header Card */}
-        <div className="bg-[#151B2C]/60 border border-[#1F2937] p-8 rounded-xl relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-2 h-full bg-cyan-400"></div>
+        <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-xl shadow-xs">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-              <span className="text-xs font-mono font-semibold bg-cyan-950/30 text-cyan-400 border border-cyan-900/30 px-2.5 py-1 rounded inline-block mb-3">
+              <span className="text-xs font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded inline-block mb-2">
                 {currentCase.caseNumber}
               </span>
-              <h2 className="text-2xl font-tech font-bold text-cyan-100">{currentCase.title}</h2>
-              <p className="text-sm text-gray-400 mt-2 max-w-2xl leading-relaxed">{currentCase.description || "No description provided."}</p>
+              <h2 className="text-2xl font-bold text-slate-900">{currentCase.title}</h2>
+              <p className="text-sm text-slate-600 mt-2 max-w-2xl leading-relaxed">
+                {currentCase.description || "No official description provided."}
+              </p>
             </div>
             
-            <div className="text-sm space-y-2 border-l border-gray-800 pl-4 py-2 flex-shrink-0">
-              <div className="flex items-center gap-2 text-cyber-muted">
-                <User className="w-4 h-4 text-cyan-400" />
-                <span>Opened By: {currentCase.creator?.name}</span>
+            <div className="text-xs space-y-2 border-l border-slate-200 pl-4 py-2 flex-shrink-0 text-slate-600">
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 text-blue-700" />
+                <span>Opened By: <strong className="text-slate-900">{currentCase.creator?.name || "Authorized Investigator"}</strong></span>
               </div>
-              <div className="flex items-center gap-2 text-cyber-muted">
-                <Calendar className="w-4 h-4 text-cyan-400" />
-                <span>Opened On: {new Date(currentCase.createdAt).toLocaleDateString()}</span>
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-blue-700" />
+                <span>Created: {new Date(currentCase.createdAt).toLocaleDateString()}</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Evidence files under this case */}
-        <div className="bg-[#151B2C]/40 border border-[#1F2937] rounded-xl p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="font-tech text-xs tracking-wider uppercase text-cyan-400">Registered Digital Evidence Vault</h3>
+        {/* Evidence Vault under this Case */}
+        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs">
+          <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+            <div>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800">
+                Registered Evidence Vault
+              </h3>
+              <p className="text-xs text-slate-500">Digital assets cryptographically associated with this case file.</p>
+            </div>
             {hasRole(["admin", "investigator"]) && (
               <Link
                 to={`/register?caseId=${currentCase.id}`}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500 hover:bg-cyan-400 text-gray-950 rounded font-semibold text-xs transition-all"
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg font-semibold text-xs transition-all shadow-xs"
               >
-                <Plus className="w-3.5 h-3.5" />
-                Add Evidence File
+                <Plus className="w-4 h-4" />
+                Register New Evidence
               </Link>
             )}
           </div>
 
           {detailsLoading ? (
-            <div className="py-12 flex items-center justify-center text-cyan-400 font-mono text-xs">
-              <div className="w-6 h-6 border-2 border-t-cyan-400 border-r-transparent border-b-cyan-400 border-l-transparent rounded-full animate-spin mr-3"></div>
-              LOADING ENCRYPTED VAULT...
+            <div className="py-12 flex items-center justify-center text-blue-700 font-medium text-xs">
+              <div className="w-6 h-6 border-2 border-blue-700 border-t-transparent rounded-full animate-spin mr-3"></div>
+              Loading encrypted vault records...
             </div>
           ) : !currentCase.evidenceItems || currentCase.evidenceItems.length === 0 ? (
-            <div className="py-12 border border-dashed border-gray-800 rounded-lg flex flex-col items-center justify-center text-gray-500">
-              <FileCheck className="w-10 h-10 text-cyber-muted mb-2 animate-bounce" />
-              <p className="text-sm">No evidence has been registered under this case yet.</p>
+            <div className="py-12 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-500">
+              <FileCheck className="w-10 h-10 text-slate-300 mb-2" />
+              <p className="text-sm font-semibold text-slate-700">No evidence items registered under this case.</p>
               {hasRole(["admin", "investigator"]) && (
-                <p className="text-xs text-cyber-muted mt-1">Click the "Add Evidence File" button to cryptographically secure one.</p>
+                <p className="text-xs text-slate-400 mt-1">Use the "Register New Evidence" button to secure forensic files.</p>
               )}
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="border-b border-gray-800 text-cyber-muted uppercase tracking-wider">
+                  <tr className="border-b border-slate-200 bg-slate-50/70 text-slate-600 uppercase tracking-wider font-semibold">
                     <th className="py-3 px-4">Evidence File</th>
                     <th className="py-3 px-4">Type</th>
-                    <th className="py-3 px-4">SHA-256 Fingerprint</th>
-                    <th className="py-3 px-4">Custodian</th>
+                    <th className="py-3 px-4">SHA-256 Checksum</th>
+                    <th className="py-3 px-4">Current Custodian</th>
                     <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4 text-right">Action</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-800/50">
+                <tbody className="divide-y divide-slate-100">
                   {currentCase.evidenceItems.map((item) => (
-                    <tr key={item.id} className="hover:bg-[#151B2C]/20 transition-colors">
-                      <td className="py-3 px-4 font-semibold text-cyan-100">{item.evidenceName}</td>
-                      <td className="py-3 px-4 text-gray-400 font-mono">{item.fileType}</td>
-                      <td className="py-3 px-4 font-mono text-cyber-muted" title={item.fileHash}>
+                    <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="py-3.5 px-4 font-semibold text-slate-900">{item.evidenceName}</td>
+                      <td className="py-3.5 px-4 text-slate-500 font-mono text-[11px]">{item.fileType}</td>
+                      <td className="py-3.5 px-4 font-mono text-slate-600" title={item.fileHash}>
                         {item.fileHash.substring(0, 16)}...
                       </td>
-                      <td className="py-3 px-4 text-cyan-200">{item.custodian?.name}</td>
-                      <td className="py-3 px-4">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold ${
-                          item.status === "REGISTERED" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-950/20" : "bg-yellow-500/10 text-yellow-400"
-                        }`}>
+                      <td className="py-3.5 px-4 text-slate-700">{item.custodian?.name || "Unassigned"}</td>
+                      <td className="py-3.5 px-4">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                           {item.status}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-3.5 px-4 text-right space-x-2">
+                        <Link
+                          to={`/custody?evidenceId=${item.id}`}
+                          className="px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded font-semibold text-[11px] transition-all inline-flex items-center gap-1"
+                        >
+                          <History className="w-3 h-3" />
+                          Custody
+                        </Link>
                         <Link
                           to={`/evidence/${item.id}`}
-                          className="px-2.5 py-1 bg-cyan-950/40 hover:bg-cyan-900/50 border border-cyan-900/30 text-cyan-400 rounded font-semibold text-[10px] transition-all inline-block"
+                          className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded font-semibold text-[11px] transition-all inline-block"
                         >
-                          Access File &rarr;
+                          View Dossier &rarr;
                         </Link>
                       </td>
                     </tr>
@@ -211,76 +225,76 @@ const Cases = () => {
   // -------------------------------------------------------------
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-xl font-tech font-bold text-cyan-400 tracking-wide">ACTIVE CASELOAD</h2>
-          <p className="text-xs text-cyber-muted">Investigative dossiers mapping registered digital evidence packages.</p>
+          <h1 className="text-xl font-bold text-slate-900">Case Dossiers</h1>
+          <p className="text-xs text-slate-500">Investigative case files containing sealed digital forensic evidence.</p>
         </div>
 
         {hasRole(["admin", "investigator"]) && (
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-gray-950 font-semibold rounded-lg text-sm transition-all"
+            className="flex items-center gap-1.5 px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg text-sm transition-all shadow-xs cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            Initialize Dossier
+            Initialize New Case
           </button>
         )}
       </div>
 
       {error && (
-        <div className="p-4 bg-red-950/20 border border-red-500/30 rounded-lg text-red-400 text-xs flex items-center gap-2">
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs flex items-center gap-2">
           <AlertCircle className="w-4 h-4" />
           {error}
         </div>
       )}
 
       {loading ? (
-        <div className="py-24 flex flex-col items-center justify-center text-cyan-400 font-mono text-xs">
-          <div className="w-8 h-8 border-3 border-t-cyan-400 border-r-transparent border-b-cyan-400 border-l-transparent rounded-full animate-spin mb-3"></div>
-          FETCHING SYSTEM DOSSIERS...
+        <div className="py-24 flex flex-col items-center justify-center text-blue-700 font-medium text-xs">
+          <div className="w-8 h-8 border-3 border-blue-700 border-t-transparent rounded-full animate-spin mb-3"></div>
+          Retrieving official case dossiers...
         </div>
       ) : cases.length === 0 ? (
-        <div className="py-24 border border-dashed border-gray-800 rounded-xl flex flex-col items-center justify-center text-gray-500">
-          <FolderLock className="w-12 h-12 text-cyber-muted mb-2 animate-pulse" />
-          <p className="text-sm font-semibold">No active cases are logged in the database.</p>
+        <div className="py-24 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-500 bg-white">
+          <FolderLock className="w-12 h-12 text-slate-300 mb-2" />
+          <p className="text-sm font-semibold text-slate-700">No active cases found in system records.</p>
           {hasRole(["admin", "investigator"]) && (
-            <p className="text-xs text-cyber-muted mt-1">Click the "Initialize Dossier" button to open a new case investigation.</p>
+            <p className="text-xs text-slate-400 mt-1">Click "Initialize New Case" to open an investigation dossier.</p>
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {cases.map((c) => (
-            <div key={c.id} className="bg-[#151B2C]/40 border border-[#1F2937] hover:border-cyan-500/30 p-6 rounded-xl flex flex-col justify-between transition-all group">
+            <div key={c.id} className="bg-white border border-slate-200 hover:border-blue-400 hover:shadow-md p-6 rounded-xl flex flex-col justify-between transition-all group">
               <div>
-                <div className="flex justify-between items-start mb-4">
-                  <span className="text-[10px] font-mono font-semibold bg-cyan-950/30 text-cyan-400 border border-cyan-900/30 px-2 py-0.5 rounded">
+                <div className="flex justify-between items-start mb-3">
+                  <span className="text-[11px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded">
                     {c.caseNumber}
                   </span>
-                  <span className="text-[10px] text-cyber-muted font-mono flex items-center gap-1">
-                    <Calendar className="w-3 h-3 text-cyan-500" />
+                  <span className="text-[11px] text-slate-400 font-mono flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
                     {new Date(c.createdAt).toLocaleDateString()}
                   </span>
                 </div>
-                <h3 className="font-tech text-base font-bold text-cyan-100 group-hover:text-cyan-400 transition-colors mb-2">
+                <h3 className="text-base font-bold text-slate-900 group-hover:text-blue-700 transition-colors mb-2">
                   {c.title}
                 </h3>
-                <p className="text-xs text-gray-400 leading-relaxed mb-4 truncate-3-lines">
-                  {c.description || "No description provided."}
+                <p className="text-xs text-slate-600 leading-relaxed mb-4 line-clamp-3">
+                  {c.description || "No case description provided."}
                 </p>
               </div>
 
-              <div className="pt-4 border-t border-gray-800/80 flex items-center justify-between">
-                <span className="text-xs text-cyber-muted flex items-center gap-1.5">
-                  <FileCheck className="w-4 h-4 text-purple-400" />
-                  {c.evidenceItems?.length || 0} Registered Files
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-xs text-slate-500 flex items-center gap-1.5 font-medium">
+                  <FileCheck className="w-4 h-4 text-purple-600" />
+                  {c.evidenceItems?.length || 0} Evidence Files
                 </span>
                 
                 <Link
                   to={`/cases/${c.id}`}
-                  className="text-xs text-cyan-400 hover:text-cyan-300 font-semibold flex items-center gap-1"
+                  className="text-xs text-blue-700 hover:text-blue-900 font-semibold flex items-center gap-1"
                 >
-                  Access Dossier &rarr;
+                  View Case &rarr;
                 </Link>
               </div>
             </div>
@@ -290,52 +304,59 @@ const Cases = () => {
 
       {/* Initialize Dossier Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-[#0B0F19]/80 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-          <div className="w-full max-w-lg bg-[#111827] border border-[#1F2937] rounded-xl shadow-2xl p-6">
-            <h3 className="font-tech text-base font-bold text-cyan-400 mb-2 uppercase">Initialize Case Dossier</h3>
-            <p className="text-xs text-gray-400 mb-6">Create a case dossier to start cryptographically registering files.</p>
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-6">
+          <div className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl shadow-2xl p-6 relative">
+            <button 
+              onClick={() => setShowCreateModal(false)}
+              className="absolute right-4 top-4 text-slate-400 hover:text-slate-700 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <h3 className="text-base font-bold text-slate-900 mb-1">Initialize Case Dossier</h3>
+            <p className="text-xs text-slate-500 mb-6">Open an official investigation case file to begin sealing evidence.</p>
 
             <form onSubmit={handleCreateCase} className="space-y-4">
               <div>
-                <label className="text-[10px] text-cyber-muted font-semibold uppercase block mb-1">Case Title</label>
+                <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Case Title *</label>
                 <input
                   type="text"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="e.g., Central Vault Incident"
-                  className="w-full bg-[#151B2C] border border-[#1F2937] focus:border-cyan-400 rounded-lg px-4 py-2.5 text-xs text-gray-100 focus:outline-none"
+                  placeholder="e.g., Vault Intrusion & Data Tamper Incident"
+                  className="w-full bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white rounded-lg px-4 py-2.5 text-xs text-slate-900 focus:outline-none"
                   required
                 />
               </div>
 
               <div>
-                <label className="text-[10px] text-cyber-muted font-semibold uppercase block mb-1">Dossier Overview / Description</label>
+                <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Investigation Scope / Summary</label>
                 <textarea
                   value={newDesc}
                   onChange={(e) => setNewDesc(e.target.value)}
-                  placeholder="Detail the case scope, target materials, and investigative leads..."
+                  placeholder="Describe initial dispatch details, scene location, and lead investigator..."
                   rows={4}
-                  className="w-full bg-[#151B2C] border border-[#1F2937] focus:border-cyan-400 rounded-lg px-4 py-2.5 text-xs text-gray-100 focus:outline-none resize-none"
+                  className="w-full bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white rounded-lg px-4 py-2.5 text-xs text-slate-900 focus:outline-none resize-none"
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-800">
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 border border-gray-800 hover:bg-gray-800 rounded-lg text-xs font-semibold text-cyber-muted hover:text-gray-100"
+                  className="px-4 py-2 border border-slate-300 hover:bg-slate-50 rounded-lg text-xs font-semibold text-slate-700"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={createLoading}
-                  className="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-gray-950 font-semibold rounded-lg text-xs tracking-wide flex items-center gap-1.5"
+                  className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg text-xs tracking-wide flex items-center gap-1.5 shadow-xs"
                 >
                   {createLoading ? (
-                    <div className="w-4 h-4 border-2 border-gray-950 border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   ) : (
-                    "Create Case"
+                    "Create Case Dossier"
                   )}
                 </button>
               </div>

@@ -226,20 +226,56 @@ exports.getEvidenceBlockchainInfo = async (req, res) => {
   }
 };
 
-// Serves the files saved in our mock IPFS directory so the frontend can display / download them.
-exports.serveMockIpfsFile = (req, res) => {
+// Serves the files saved in our mock IPFS directory with full MIME-type and streaming support.
+exports.serveMockIpfsFile = async (req, res) => {
   try {
     const { cid } = req.params;
+    const { download } = req.query;
     const filePath = path.join(ipfsService.IPFS_MOCK_DIR, cid);
 
     if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: "File not found on IPFS gateway." });
+      return res.status(404).json({ error: "Evidence file not found on IPFS gateway." });
     }
 
-    // Set download headers or let the browser view it
-    return res.sendFile(filePath);
+    // Retrieve MIME type and original filename from database record
+    const evidence = await Evidence.findOne({ where: { ipfsCid: cid } });
+    const mimeType = evidence?.fileType || "application/octet-stream";
+    const fileName = evidence?.evidenceName || `evidence_${cid.substring(0, 8)}`;
+
+    res.setHeader("Content-Type", mimeType);
+    res.setHeader("Accept-Ranges", "bytes");
+
+    if (download === "true") {
+      res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(fileName)}"`);
+    } else {
+      res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(fileName)}"`);
+    }
+
+    // Stream file with range support for audio/video seeking
+    const stat = fs.statSync(filePath);
+    const fileSize = stat.size;
+    const range = req.headers.range;
+
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunksize = end - start + 1;
+      const file = fs.createReadStream(filePath, { start, end });
+      const head = {
+        "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+        "Accept-Ranges": "bytes",
+        "Content-Length": chunksize,
+        "Content-Type": mimeType,
+      };
+      res.writeHead(206, head);
+      file.pipe(res);
+    } else {
+      res.setHeader("Content-Length", fileSize);
+      fs.createReadStream(filePath).pipe(res);
+    }
   } catch (error) {
     console.error("Serve mock IPFS file error:", error);
-    return res.status(500).json({ error: "Failed to read file from mock IPFS gateway." });
+    return res.status(500).json({ error: "Failed to read file from mock IPFS gateway: " + error.message });
   }
 };

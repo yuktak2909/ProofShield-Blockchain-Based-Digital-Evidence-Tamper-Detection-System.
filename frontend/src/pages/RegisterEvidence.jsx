@@ -10,7 +10,9 @@ import {
   Cpu, 
   Database,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  CheckCircle2,
+  AlertCircle
 } from "lucide-react";
 
 const RegisterEvidence = () => {
@@ -35,11 +37,11 @@ const RegisterEvidence = () => {
   const [error, setError] = useState("");
 
   const steps = [
-    { label: "File Upload & Hashing", desc: "Generating SHA-256 cryptographic fingerprint", icon: FileText },
-    { label: "IPFS Off-Chain Storage", desc: "Pushing digital payload to decentralized nodes", icon: UploadCloud },
-    { label: "Blockchain Sealing", desc: "Executing smart contract transaction to seal hash", icon: Cpu },
-    { label: "Database Registry", desc: "Writing searchable metadata & logs to SQL index", icon: Database },
-    { label: "Evidence Secured", desc: "Integrity verified and custody lock sealed", icon: ShieldCheck }
+    { label: "Cryptographic SHA-256 Hashing", desc: "Generating tamper-proof binary fingerprint (FIPS 180-4)", icon: FileText },
+    { label: "IPFS Content Addressing", desc: "Sealing payload into content-addressed distributed storage", icon: UploadCloud },
+    { label: "Ethereum Smart Contract Witness", desc: "Mining on-chain transaction to register immutable hash", icon: Cpu },
+    { label: "PostgreSQL Audit Trail Index", desc: "Recording chain of custody logs and case relationships", icon: Database },
+    { label: "Evidence Verified & Sealed", desc: "Federal Rules of Evidence Rule 902(13)/(14) compliant", icon: ShieldCheck }
   ];
 
   useEffect(() => {
@@ -48,7 +50,7 @@ const RegisterEvidence = () => {
         const response = await axios.get("/api/cases");
         setCases(response.data);
       } catch (err) {
-        console.error("Failed to load cases");
+        console.error("Failed to load cases catalog");
       }
     };
     fetchCases();
@@ -78,7 +80,7 @@ const RegisterEvidence = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!file || !caseId || !evidenceName) {
-      setError("Please fill out all required fields and select a file.");
+      setError("Please select a target case, specify an evidence name, and attach a file.");
       return;
     }
 
@@ -86,16 +88,14 @@ const RegisterEvidence = () => {
     setError("");
     setSuccessData(null);
     
-    // Simulate pipeline transitions for user interface visual clarity
-    // since the server does it all in one API request, we map the progression sequentially
     try {
-      // Step 1: Hashing
+      // Step 1: Hashing simulation
       setCurrentStep(1);
-      await new Promise(r => setTimeout(r, 800)); // micro-loading for realistic visualization
+      await new Promise(r => setTimeout(r, 600));
 
       // Step 2: IPFS
       setCurrentStep(2);
-      await new Promise(r => setTimeout(r, 800));
+      await new Promise(r => setTimeout(r, 600));
 
       // Step 3: Blockchain
       setCurrentStep(3);
@@ -117,7 +117,7 @@ const RegisterEvidence = () => {
 
       // Step 4: DB
       setCurrentStep(4);
-      await new Promise(r => setTimeout(r, 800));
+      await new Promise(r => setTimeout(r, 600));
 
       // Step 5: Secured
       setCurrentStep(5);
@@ -137,47 +137,51 @@ const RegisterEvidence = () => {
   if (successData) {
     return (
       <div className="max-w-3xl mx-auto space-y-6">
-        <div className="bg-[#151B2C]/60 border border-emerald-500/20 p-8 rounded-xl text-center relative overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-emerald-400"></div>
-          <div className="h-16 w-16 bg-emerald-500/10 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-500/20 animate-pulse">
-            <ShieldCheck className="w-8 h-8" />
+        <div className="bg-white border border-emerald-200 p-8 rounded-2xl text-center shadow-sm">
+          <div className="h-16 w-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-200">
+            <CheckCircle2 className="w-8 h-8" />
           </div>
-          <h2 className="text-xl font-tech font-bold text-emerald-400 uppercase tracking-wider mb-2">Evidence Cryptographically Secured</h2>
-          <p className="text-xs text-gray-400 max-w-md mx-auto">
-            The file has been registered. The blockchain transaction provides an immutable witness of the original SHA-256 fingerprint.
+          <span className="text-xs font-mono font-bold uppercase px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded">
+            CRYPTOGRAPHIC PROOF SEALED
+          </span>
+          <h2 className="text-2xl font-bold text-slate-900 mt-2 mb-2">Evidence Cryptographically Secured</h2>
+          <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
+            The digital asset has been securely stored on IPFS and its cryptographic SHA-256 fingerprint is permanently recorded on the Ethereum blockchain.
           </p>
         </div>
 
         {/* Audit Details Card */}
-        <div className="bg-[#151B2C]/40 border border-[#1F2937] p-6 rounded-xl space-y-4">
-          <h3 className="font-tech text-xs tracking-wider uppercase text-cyan-400 border-b border-gray-800 pb-3">Dossier Audit Credentials</h3>
+        <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-xs space-y-4">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 border-b border-slate-100 pb-3">
+            Sealed Dossier Credentials
+          </h3>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
             <div>
-              <span className="text-cyber-muted block text-[10px] uppercase">Evidence ID</span>
-              <span className="text-cyan-200 block truncate">{successData.id}</span>
+              <span className="text-slate-400 block text-[10px] uppercase font-sans">Evidence Identifier</span>
+              <span className="text-slate-900 font-semibold block truncate">{successData.id}</span>
             </div>
             <div>
-              <span className="text-cyber-muted block text-[10px] uppercase">Case ID Ref</span>
-              <span className="text-cyan-200 block truncate">{successData.caseId}</span>
+              <span className="text-slate-400 block text-[10px] uppercase font-sans">Associated Case Dossier</span>
+              <span className="text-slate-900 font-semibold block truncate">{successData.caseId}</span>
             </div>
-            <div className="sm:col-span-2">
-              <span className="text-cyber-muted block text-[10px] uppercase">Primary SHA-256 Fingerprint</span>
-              <span className="text-emerald-400 block break-all">{successData.fileHash}</span>
+            <div className="sm:col-span-2 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+              <span className="text-slate-400 block text-[10px] uppercase font-sans mb-1">Original SHA-256 Checksum</span>
+              <span className="text-emerald-700 font-bold block break-all">{successData.fileHash}</span>
             </div>
             <div>
-              <span className="text-cyber-muted block text-[10px] uppercase">IPFS Gateway CID</span>
-              <span className="text-cyan-200 block truncate" title={successData.ipfsCid}>
+              <span className="text-slate-400 block text-[10px] uppercase font-sans">IPFS Storage CID</span>
+              <span className="text-blue-700 block truncate" title={successData.ipfsCid}>
                 {successData.ipfsCid}
               </span>
             </div>
             <div>
-              <span className="text-cyber-muted block text-[10px] uppercase">Sealed Timestamp</span>
-              <span className="text-cyan-200 block">{new Date(successData.submittedAt).toLocaleString()}</span>
+              <span className="text-slate-400 block text-[10px] uppercase font-sans">Sealed Timestamp (UTC)</span>
+              <span className="text-slate-900 block">{new Date(successData.submittedAt).toLocaleString()}</span>
             </div>
-            <div className="sm:col-span-2 pt-2 border-t border-gray-800/50">
-              <span className="text-cyber-muted block text-[10px] uppercase">Blockchain Tx Hash</span>
-              <span className="text-purple-400 block break-all">{successData.blockchainTxId}</span>
+            <div className="sm:col-span-2 pt-2 border-t border-slate-100">
+              <span className="text-slate-400 block text-[10px] uppercase font-sans mb-1">Ethereum Transaction Hash</span>
+              <span className="text-purple-700 font-semibold block break-all">{successData.blockchainTxId}</span>
             </div>
           </div>
         </div>
@@ -185,9 +189,9 @@ const RegisterEvidence = () => {
         <div className="flex gap-4 justify-center">
           <Link
             to={`/evidence/${successData.id}`}
-            className="px-6 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-gray-950 font-semibold rounded-lg text-sm transition-all"
+            className="px-6 py-2.5 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg text-sm transition-all shadow-xs"
           >
-            Access Custody Dossier
+            Access Evidence Dossier
           </Link>
           <button
             onClick={() => {
@@ -198,9 +202,9 @@ const RegisterEvidence = () => {
               setCollectionTimestamp(new Date().toISOString().substring(0, 16));
               setLocation("");
             }}
-            className="px-6 py-2.5 bg-[#151B2C] hover:bg-[#151B2C]/80 border border-[#1F2937] text-cyan-400 font-semibold rounded-lg text-sm transition-all"
+            className="px-6 py-2.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-semibold rounded-lg text-sm transition-all shadow-xs"
           >
-            Register Another File
+            Register Another Evidence File
           </button>
         </div>
       </div>
@@ -211,21 +215,21 @@ const RegisterEvidence = () => {
   // REGISTRATION FORM / PIPELINE VIEW
   // -------------------------------------------------------------
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-6">
       <div>
-        <h2 className="text-xl font-tech font-bold text-cyan-400 tracking-wide">SECURE DIGITAL REGISTER</h2>
-        <p className="text-xs text-cyber-muted">Seal raw forensic digital files into the tamper detection database and on-chain log.</p>
+        <h1 className="text-xl font-bold text-slate-900">Register Digital Evidence</h1>
+        <p className="text-xs text-slate-500">Seal forensic digital payloads with an immutable blockchain timestamp and IPFS storage.</p>
       </div>
 
       {loading ? (
         // Pipeline UI Loader
-        <div className="bg-[#151B2C]/40 border border-[#1F2937] rounded-xl p-8 space-y-8">
+        <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-xs space-y-8">
           <div className="text-center">
-            <h3 className="font-tech text-cyan-400 animate-pulse text-sm tracking-wider font-semibold">EXECUTING REGISTER PIPELINE</h3>
-            <p className="text-xs text-gray-500 mt-1">Standby. Initializing multi-node cryptographic lock...</p>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-blue-700">Executing Cryptographic Registration Pipeline</h3>
+            <p className="text-xs text-slate-500 mt-1">Please wait while the multi-step witness protocol seals this asset...</p>
           </div>
 
-          <div className="max-w-md mx-auto space-y-6 relative pl-8 border-l border-gray-800">
+          <div className="max-w-md mx-auto space-y-6 relative pl-8 border-l border-slate-200">
             {steps.map((step, idx) => {
               const StepIcon = step.icon;
               const isPast = idx + 1 < currentStep;
@@ -233,23 +237,24 @@ const RegisterEvidence = () => {
               
               return (
                 <div key={idx} className="relative flex items-start gap-4">
-                  {/* Step Bubble */}
                   <span className={`absolute -left-12 top-0.5 w-8 h-8 rounded-full border flex items-center justify-center text-xs font-mono font-bold transition-all ${
                     isPast 
-                      ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" 
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-300" 
                       : isCurrent 
-                        ? "bg-cyan-500/20 text-cyan-400 border-cyan-400 animate-pulse" 
-                        : "bg-[#151B2C] text-gray-600 border-gray-800"
+                        ? "bg-blue-50 text-blue-700 border-blue-600 animate-pulse" 
+                        : "bg-slate-100 text-slate-400 border-slate-200"
                   }`}>
-                    {idx + 1}
+                    {isPast ? "✓" : idx + 1}
                   </span>
 
                   <div>
-                    <h4 className={`text-xs font-bold tracking-wide flex items-center gap-1.5 ${isCurrent ? "text-cyan-400" : isPast ? "text-emerald-400" : "text-gray-500"}`}>
+                    <h4 className={`text-xs font-bold tracking-wide flex items-center gap-1.5 ${
+                      isCurrent ? "text-blue-700" : isPast ? "text-emerald-700" : "text-slate-400"
+                    }`}>
                       <StepIcon className="w-4 h-4" />
                       {step.label}
                     </h4>
-                    <p className="text-[10px] text-gray-400 leading-normal mt-0.5">{step.desc}</p>
+                    <p className="text-[11px] text-slate-500 leading-normal mt-0.5">{step.desc}</p>
                   </div>
                 </div>
               );
@@ -258,9 +263,10 @@ const RegisterEvidence = () => {
         </div>
       ) : (
         // Input Form
-        <div className="bg-[#151B2C]/40 border border-[#1F2937] rounded-xl p-6 md:p-8">
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-xs">
           {error && (
-            <div className="mb-6 p-4 bg-red-950/20 border border-red-500/30 rounded-lg text-red-400 text-xs">
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" />
               {error}
             </div>
           )}
@@ -269,11 +275,11 @@ const RegisterEvidence = () => {
             
             {/* File Drag and Drop */}
             <div>
-              <label className="text-[10px] text-cyber-muted font-semibold uppercase block mb-2">Select Digital Payload</label>
+              <label className="text-xs text-slate-700 font-semibold uppercase block mb-2">Digital Forensic File *</label>
               <div
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
-                className="border-2 border-dashed border-gray-800 hover:border-cyan-500/30 bg-[#111827]/40 rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all relative group"
+                className="border-2 border-dashed border-slate-300 hover:border-blue-500 bg-slate-50/70 rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all relative group"
               >
                 <input
                   type="file"
@@ -281,18 +287,18 @@ const RegisterEvidence = () => {
                   className="absolute inset-0 opacity-0 cursor-pointer"
                   required={!file}
                 />
-                <UploadCloud className="w-10 h-10 text-cyan-400 mb-3 group-hover:scale-110 transition-transform" />
+                <UploadCloud className="w-10 h-10 text-blue-600 mb-3 group-hover:scale-105 transition-transform" />
                 {file ? (
                   <div>
-                    <p className="text-sm font-semibold text-cyan-200">{file.name}</p>
-                    <p className="text-xs text-cyber-muted mt-1 font-mono">
-                      {(file.size / (1024 * 1024)).toFixed(2)} MB &bull; {file.type || "unknown type"}
+                    <p className="text-sm font-semibold text-slate-900">{file.name}</p>
+                    <p className="text-xs text-slate-500 mt-1 font-mono">
+                      {(file.size / (1024 * 1024)).toFixed(2)} MB &bull; {file.type || "binary payload"}
                     </p>
                   </div>
                 ) : (
                   <div>
-                    <p className="text-sm text-gray-300 font-medium">Drag & drop evidence file here, or click to browse</p>
-                    <p className="text-[10px] text-cyber-muted mt-1">Supported: JPG, PNG, MP4, MOV, AVI, MP3, WAV, PDF, TXT, DOC/DOCX (Max 50MB)</p>
+                    <p className="text-sm text-slate-800 font-medium">Drag and drop evidence file here, or click to browse</p>
+                    <p className="text-[11px] text-slate-400 mt-1">Accepted: MP4, AVI, JPG, PNG, PDF, WAV, DOCX, LOG, TXT (Up to 50MB)</p>
                   </div>
                 )}
               </div>
@@ -302,14 +308,14 @@ const RegisterEvidence = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
               <div>
-                <label className="text-[10px] text-cyber-muted font-semibold uppercase block mb-1">Target Case Dossier *</label>
+                <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Target Case Dossier *</label>
                 <select
                   value={caseId}
                   onChange={(e) => setCaseId(e.target.value)}
-                  className="w-full bg-[#151B2C] border border-[#1F2937] focus:border-cyan-400 rounded-lg px-4 py-2.5 text-xs text-gray-100 focus:outline-none"
+                  className="w-full bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white rounded-lg px-4 py-2.5 text-xs text-slate-900 focus:outline-none"
                   required
                 >
-                  <option value="">-- SELECT Dossier --</option>
+                  <option value="">-- Select Case File --</option>
                   {cases.map((c) => (
                     <option key={c.id} value={c.id}>
                       [{c.caseNumber}] {c.title}
@@ -319,89 +325,89 @@ const RegisterEvidence = () => {
               </div>
 
               <div>
-                <label className="text-[10px] text-cyber-muted font-semibold uppercase block mb-1">Evidence Title *</label>
+                <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Evidence Title *</label>
                 <input
                   type="text"
                   value={evidenceName}
                   onChange={(e) => setEvidenceName(e.target.value)}
-                  placeholder="e.g., lobby_cctv_leak.mp4"
-                  className="w-full bg-[#151B2C] border border-[#1F2937] focus:border-cyan-400 rounded-lg px-4 py-2.5 text-xs text-gray-100 focus:outline-none"
+                  placeholder="e.g., cctv_surveillance_vault.mp4"
+                  className="w-full bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white rounded-lg px-4 py-2.5 text-xs text-slate-900 focus:outline-none"
                   required
                 />
               </div>
 
               <div>
-                <label className="text-[10px] text-cyber-muted font-semibold uppercase block mb-1">Collection Location / GPS</label>
+                <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Collection Location / Coordinates</label>
                 <div className="relative">
-                  <MapPin className="absolute left-3.5 top-3 w-4 h-4 text-cyber-muted" />
+                  <MapPin className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
                   <input
                     type="text"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
-                    placeholder="GPS Coordinates or Room Name"
-                    className="w-full bg-[#151B2C] border border-[#1F2937] focus:border-cyan-400 rounded-lg pl-10 pr-4 py-2.5 text-xs text-gray-100 focus:outline-none"
+                    placeholder="e.g. Central Vault - Node 04 corridor"
+                    className="w-full bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white rounded-lg pl-10 pr-4 py-2.5 text-xs text-slate-900 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-[10px] text-cyber-muted font-semibold uppercase block mb-1">Collection Date & Time</label>
+                <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Collection Timestamp (UTC)</label>
                 <div className="relative font-mono">
-                  <Calendar className="absolute left-3.5 top-3 w-4 h-4 text-cyber-muted" />
+                  <Calendar className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
                   <input
                     type="datetime-local"
                     value={collectionTimestamp}
                     onChange={(e) => setCollectionTimestamp(e.target.value)}
-                    className="w-full bg-[#151B2C] border border-[#1F2937] focus:border-cyan-400 rounded-lg pl-10 pr-4 py-2.5 text-xs text-gray-100 focus:outline-none"
+                    className="w-full bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white rounded-lg pl-10 pr-4 py-2.5 text-xs text-slate-900 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div className="md:col-span-2">
-                <label className="text-[10px] text-cyber-muted font-semibold uppercase block mb-1">Description / Investigative Notes</label>
+                <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Forensic Description & Recovery Notes</label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Record device details, physical recovery tags, and chain-of-custody contexts..."
+                  placeholder="Record recovery methodology, write-blocker hardware serial numbers, and initial custody context..."
                   rows={4}
-                  className="w-full bg-[#151B2C] border border-[#1F2937] focus:border-cyan-400 rounded-lg px-4 py-2.5 text-xs text-gray-100 focus:outline-none resize-none"
+                  className="w-full bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white rounded-lg px-4 py-2.5 text-xs text-slate-900 focus:outline-none resize-none"
                 />
               </div>
 
               {/* Optional Perceptual Hashing Checkbox */}
               {file && file.type?.startsWith("image/") && (
-                <div className="md:col-span-2 p-4 bg-[#111827]/40 border border-purple-500/20 rounded-lg flex items-center justify-between">
+                <div className="md:col-span-2 p-4 bg-purple-50/60 border border-purple-200 rounded-xl flex items-center justify-between">
                   <div className="pr-4">
-                    <h4 className="text-xs font-bold text-purple-400 flex items-center gap-1">
-                      <Sparkles className="w-3.5 h-3.5" />
-                      Visual Perceptual Fingerprint
+                    <h4 className="text-xs font-bold text-purple-800 flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-purple-600" />
+                      Visual Perceptual Fingerprint (pHash)
                     </h4>
-                    <p className="text-[10px] text-gray-400 mt-0.5">
-                      Enable fuzzy hashing to match visually identical media (detect compression differences, cropping, or watermark alterations).
+                    <p className="text-[11px] text-purple-700/80 mt-0.5">
+                      Compute invariant discrete cosine transform fingerprint to detect crops, watermark alterations, or re-compression.
                     </p>
                   </div>
                   <input
                     type="checkbox"
                     checked={enablePHash}
                     onChange={(e) => setEnablePHash(e.target.checked)}
-                    className="w-4 h-4 accent-purple-500 cursor-pointer"
+                    className="w-4 h-4 accent-purple-600 cursor-pointer"
                   />
                 </div>
               )}
             </div>
 
-            <div className="pt-4 border-t border-gray-800 flex justify-end gap-3">
+            <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
               <Link
                 to="/cases"
-                className="px-5 py-2.5 border border-gray-800 hover:bg-gray-800 rounded-lg text-xs font-semibold text-cyber-muted hover:text-gray-100"
+                className="px-5 py-2.5 border border-slate-300 hover:bg-slate-50 rounded-lg text-xs font-semibold text-slate-700"
               >
                 Cancel
               </Link>
               <button
                 type="submit"
-                className="px-6 py-2.5 bg-cyan-500 hover:bg-cyan-400 active:bg-cyan-600 text-gray-950 font-semibold rounded-lg text-xs tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
+                className="px-6 py-2.5 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg text-xs tracking-wide flex items-center gap-2 transition-all cursor-pointer shadow-xs"
               >
-                SECURE LOCK PAYLOAD
+                Register & Seal Evidence
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

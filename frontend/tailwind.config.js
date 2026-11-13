@@ -7,15 +7,25 @@ export default {
   theme: {
     extend: {
       colors: {
-        cyber: {
-          bg: "#0B0F19",       // Deep cyber dark blue
-          card: "#151B2C",     // Glass-like container color
-          primary: "#00F0FF",  // Neon cyan
-          secondary: "#9D4EDD",// Neon purple
-          warning: "#FF0055",  // Tamper alert neon red
-          success: "#00E676",  // Secured green
-          text: "#F0F4F8",     // Sleek off-white text
-          muted: "#6B7C96"     // Cool grey-blue muted text
+        gov: {
+          navy: "#0F172A",      // Deep authoritative slate-navy
+          sidebar: "#1E293B",   // Formal navigation sidebar
+          surface: "#FFFFFF",   // Crisp white card surfaces
+          bg: "#F8FAFC",        // Clean slate-50 background
+          border: "#E2E8F0",    // Subtle clean border
+          borderDark: "#CBD5E1",
+          primary: "#1E40AF",   // Formal institutional navy blue
+          primaryHover: "#1D4ED8",
+          success: "#047857",   // Official verified green
+          successBg: "#ECFDF5",
+          danger: "#B91C1C",    // Official tamper warning red
+          dangerBg: "#FEF2F2",
+          warning: "#B45309",
+          warningBg: "#FFFBEB",
+          purple: "#6D28D9",
+          purpleBg: "#F5F3FF",
+          text: "#0F172A",      // High contrast deep slate text
+          muted: "#475569"      // Crisp muted slate
         }
       }
     },

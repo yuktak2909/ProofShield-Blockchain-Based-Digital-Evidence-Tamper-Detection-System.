@@ -1,10 +1,25 @@
 const bcrypt = require("bcryptjs");
+const fs = require("fs");
+const path = require("path");
+const crypto = require("crypto");
 const { sequelize, User, Case, Evidence, CustodyLog, VerificationLog } = require("../models");
+
+function getMockCID(fileHash) {
+  const md5Hash = crypto.createHash("md5").update(fileHash).digest("hex");
+  const sha256Snippet = fileHash.substring(0, 28);
+  const alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+  let mockCid = "Qm";
+  const combinedHex = sha256Snippet + md5Hash;
+  for (let i = 0; i < 44; i++) {
+    const charCode = combinedHex.charCodeAt(i % combinedHex.length) + i;
+    mockCid += alphabet.charAt(charCode % alphabet.length);
+  }
+  return mockCid;
+}
 
 async function init() {
   try {
-    console.log("Connecting to the database and syncing models...");
-    // Sync models - drops tables if they exist and recreates them
+    console.log("Connecting to PostgreSQL and syncing models...");
     await sequelize.sync({ force: true });
     console.log("Database schema synced successfully.");
 
@@ -48,8 +63,8 @@ async function init() {
       {
         caseNumber: "PS-2026-001",
         title: "Central Bank Vault Intrusion",
-        description: "Investigation of unauthorized access to the safety deposit lockers at Central Bank main vault. Main evidence includes lobby and corridor CCTV footage.",
-        createdBy: users[0].id, // Investigator
+        description: "Investigation of unauthorized access to the safety deposit lockers at Central Bank main vault. Primary evidence includes entrance CCTV footage, dispatch audio, and on-site forensic examination report.",
+        createdBy: users[0].id,
       },
       {
         caseNumber: "PS-2026-002",
@@ -59,88 +74,159 @@ async function init() {
       },
     ]);
 
-    console.log("Seeding initial evidence records...");
-    // Let's create evidence for Vault Intrusion
+    const demoDir = path.join(__dirname, "../../uploads/demo_files");
+    const ipfsDir = path.join(__dirname, "../../uploads/ipfs_mock");
+    if (!fs.existsSync(ipfsDir)) fs.mkdirSync(ipfsDir, { recursive: true });
+
+    // Helper to get file info using fixed CID names from ipfs_mock
+    const prepareFile = (filename, fixedCid) => {
+      const p = path.join(demoDir, filename);
+      if (!fs.existsSync(p)) return { hash: "none", cid: fixedCid, size: 0 };
+      const buf = fs.readFileSync(p);
+      const hash = crypto.createHash("sha256").update(buf).digest("hex");
+      // Copy to ipfs_mock with fixed CID name
+      fs.writeFileSync(path.join(ipfsDir, fixedCid), buf);
+      return { hash, cid: fixedCid, size: buf.length };
+    };
+
+    const videoInfo = prepareFile("evidence_cctv.mp4", "QmXvideo001");
+    const pdfInfo = prepareFile("forensic_report.pdf", "QmYpdf002");
+    const audioInfo = prepareFile("dispatch_call.wav", "QmZaudio003");
+    const photoInfo = prepareFile("crime_scene_photo.jpg", "QmWimage004");
+
+    console.log("Seeding initial evidence records with real media files...");
     const evidence1 = await Evidence.create({
       caseId: cases[0].id,
-      evidenceName: "lobby_cctv_cam2_1950.mp4",
+      evidenceName: "evidence_cctv.mp4",
       fileType: "video/mp4",
-      fileSize: 10485760, // 10MB
-      fileHash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", // Mock SHA-256
-      ipfsCid: "QmXoypizjW3WknFiJnKLwHCnL72vedxjQkDDP1mXWo6uco",
-      submittedBy: users[0].id, // Investigator
+      fileSize: videoInfo.size,
+      fileHash: videoInfo.hash,
+      ipfsCid: videoInfo.cid,
+      submittedBy: users[0].id, // Investigator Alice
       blockchainTxId: "0x7894561230abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-      submittedAt: new Date(Date.now() - 3600000 * 2), // 2 hours ago
-      currentCustodian: users[1].id, // Forensic Analyst
+      submittedAt: new Date(Date.now() - 3600000 * 3),
+      currentCustodian: users[1].id, // Transferred to Analyst Bob
       status: "REGISTERED",
-      description: "Lobby entrance CCTV recording between 19:45 and 20:00 on day of incident.",
+      description: "Direct surveillance recording of the central vault door at 19:48:00 UTC.",
       collectionTimestamp: new Date(Date.now() - 3600000 * 5),
-      location: "Lobby Camera 2",
+      location: "Central Vault - Camera #02",
     });
 
     const evidence2 = await Evidence.create({
-      caseId: cases[1].id,
-      evidenceName: "design_blueprint_confidential.pdf",
+      caseId: cases[0].id,
+      evidenceName: "forensic_examination_report.pdf",
       fileType: "application/pdf",
-      fileSize: 2048576, // 2MB
-      fileHash: "f1a5b8c9d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9",
-      ipfsCid: "QmYwAPJhy5nArbeh7v5vab8uYnuYi42Xrnqn34oncaS2fQ",
-      submittedBy: users[0].id, // Investigator
+      fileSize: pdfInfo.size,
+      fileHash: pdfInfo.hash,
+      ipfsCid: pdfInfo.cid,
+      submittedBy: users[0].id, // Investigator Alice
       blockchainTxId: "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
-      submittedAt: new Date(Date.now() - 3600000 * 4), // 4 hours ago
-      currentCustodian: users[0].id, // Investigator
+      submittedAt: new Date(Date.now() - 3600000 * 2),
+      currentCustodian: users[0].id, // Investigator Alice
       status: "REGISTERED",
-      description: "Leaked PDF document showing confidential battery components blueprint.",
-      collectionTimestamp: new Date(Date.now() - 3600000 * 8),
-      location: "Target laptop storage",
+      description: "Official preliminary crime scene inspection report and hardware write-blocker image verification.",
+      collectionTimestamp: new Date(Date.now() - 3600000 * 4),
+      location: "Cyber Forensics Field Unit 04",
+    });
+
+    const evidence3 = await Evidence.create({
+      caseId: cases[0].id,
+      evidenceName: "emergency_dispatch_call.wav",
+      fileType: "audio/wav",
+      fileSize: audioInfo.size,
+      fileHash: audioInfo.hash,
+      ipfsCid: audioInfo.cid,
+      submittedBy: users[0].id, // Investigator Alice
+      blockchainTxId: "0x9988776655abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      submittedAt: new Date(Date.now() - 3600000 * 1),
+      currentCustodian: users[2].id, // Transferred to Court Official Charles
+      status: "REGISTERED",
+      description: "Audio capture of the incoming security dispatch alert notification.",
+      collectionTimestamp: new Date(Date.now() - 3600000 * 6),
+      location: "911 Command Communications Center",
+    });
+
+    const evidence4 = await Evidence.create({
+      caseId: cases[0].id,
+      evidenceName: "crime_scene_photo.jpg",
+      fileType: "image/jpeg",
+      fileSize: photoInfo.size,
+      fileHash: photoInfo.hash,
+      ipfsCid: photoInfo.cid,
+      submittedBy: users[0].id,
+      blockchainTxId: "0x5544332211abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      submittedAt: new Date(Date.now() - 3600000 * 4),
+      currentCustodian: users[0].id,
+      status: "REGISTERED",
+      description: "High resolution forensic scene photograph of physical vault door lock mechanism.",
+      collectionTimestamp: new Date(Date.now() - 3600000 * 6),
+      location: "Main Chamber Door Outer Panel",
     });
 
     console.log("Seeding custody logs...");
     await CustodyLog.bulkCreate([
       {
         evidenceId: evidence1.id,
-        actorId: users[0].id, // Investigator Alice
+        actorId: users[0].id, // Alice
         action: "viewed",
         previousCustodian: users[0].id,
         newCustodian: users[0].id,
         blockchainTxId: null,
-        timestamp: new Date(Date.now() - 3600000 * 1.9),
+        timestamp: new Date(Date.now() - 3600000 * 2.8),
       },
       {
         evidenceId: evidence1.id,
-        actorId: users[0].id, // Investigator Alice
+        actorId: users[0].id, // Alice
         action: "transferred",
         previousCustodian: users[0].id,
-        newCustodian: users[1].id, // to Analyst Bob
+        newCustodian: users[1].id, // to Bob
         blockchainTxId: "0xabc123def456abc123def456abc123def456abc123def456abc123def456abc1",
-        timestamp: new Date(Date.now() - 3600000 * 1.5),
+        timestamp: new Date(Date.now() - 3600000 * 2.5),
       },
       {
         evidenceId: evidence1.id,
-        actorId: users[1].id, // Analyst Bob
+        actorId: users[1].id, // Bob
         action: "viewed",
         previousCustodian: users[1].id,
         newCustodian: users[1].id,
         blockchainTxId: null,
-        timestamp: new Date(Date.now() - 3600000 * 1.2),
+        timestamp: new Date(Date.now() - 3600000 * 2.0),
       },
       {
         evidenceId: evidence1.id,
-        actorId: users[1].id, // Analyst Bob
+        actorId: users[1].id, // Bob
         action: "downloaded",
         previousCustodian: users[1].id,
         newCustodian: users[1].id,
         blockchainTxId: null,
-        timestamp: new Date(Date.now() - 3600000 * 1.1),
+        timestamp: new Date(Date.now() - 3600000 * 1.8),
       },
       {
         evidenceId: evidence2.id,
-        actorId: users[0].id, // Investigator
+        actorId: users[0].id, // Alice
         action: "viewed",
         previousCustodian: users[0].id,
         newCustodian: users[0].id,
         blockchainTxId: null,
-        timestamp: new Date(Date.now() - 3600000 * 3.8),
+        timestamp: new Date(Date.now() - 3600000 * 1.5),
+      },
+      {
+        evidenceId: evidence3.id,
+        actorId: users[0].id, // Alice
+        action: "transferred",
+        previousCustodian: users[0].id,
+        newCustodian: users[2].id, // to Charles
+        blockchainTxId: "0xdef789abc012def789abc012def789abc012def789abc012def789abc012def7",
+        timestamp: new Date(Date.now() - 3600000 * 0.8),
+      },
+      {
+        evidenceId: evidence4.id,
+        actorId: users[0].id, // Alice
+        action: "viewed",
+        previousCustodian: users[0].id,
+        newCustodian: users[0].id,
+        blockchainTxId: null,
+        timestamp: new Date(Date.now() - 3600000 * 3.5),
       },
     ]);
 
@@ -149,22 +235,38 @@ async function init() {
       {
         evidenceId: evidence1.id,
         verifiedBy: users[1].id, // Bob
-        submittedHash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", // match
-        originalHash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        submittedHash: videoInfo.hash, // Exact match
+        originalHash: videoInfo.hash,
         result: "verified",
-        timestamp: new Date(Date.now() - 3600000 * 1.0),
+        timestamp: new Date(Date.now() - 3600000 * 1.2),
       },
       {
         evidenceId: evidence1.id,
-        verifiedBy: users[2].id, // Court Charles
-        submittedHash: "badhash44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", // mismatch!
-        originalHash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        verifiedBy: users[2].id, // Charles
+        submittedHash: "86182101687f97b6e92751f9859f515082161b34e5659e5572eb06a6b5860d5b", // Mismatch
+        originalHash: videoInfo.hash,
         result: "tampered",
         timestamp: new Date(Date.now() - 3600000 * 0.5),
       },
+      {
+        evidenceId: evidence2.id,
+        verifiedBy: users[0].id, // Alice
+        submittedHash: pdfInfo.hash,
+        originalHash: pdfInfo.hash,
+        result: "verified",
+        timestamp: new Date(Date.now() - 3600000 * 0.3),
+      },
+      {
+        evidenceId: evidence3.id,
+        verifiedBy: users[2].id, // Charles
+        submittedHash: audioInfo.hash,
+        originalHash: audioInfo.hash,
+        result: "verified",
+        timestamp: new Date(Date.now() - 3600000 * 0.2),
+      },
     ]);
 
-    console.log("Database initialized and seeded successfully!");
+    console.log("✓ Database initialized & seeded successfully with real video, audio, PDF, and photo files!");
     process.exit(0);
   } catch (err) {
     console.error("Failed to initialize database:", err);

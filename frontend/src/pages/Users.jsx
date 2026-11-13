@@ -6,9 +6,10 @@ import {
   Trash2, 
   Edit2, 
   AlertCircle,
-  ShieldAlert,
+  ShieldCheck,
   Wallet,
-  X
+  X,
+  CheckCircle2
 } from "lucide-react";
 
 const Users = () => {
@@ -64,7 +65,7 @@ const Users = () => {
     setEditId(user.id);
     setName(user.name);
     setEmail(user.email);
-    setPassword(""); // Leave blank
+    setPassword("");
     setRole(user.role);
     setWalletAddress(user.walletAddress || "");
     setError("");
@@ -80,9 +81,9 @@ const Users = () => {
     try {
       if (isEditing) {
         const payload = { name, email, role, walletAddress };
-        if (password) payload.password = password; // Only update pass if entered
+        if (password) payload.password = password;
         await axios.patch(`/api/admin/users/${editId}`, payload);
-        setSuccess("User account updated successfully.");
+        setSuccess("User identity updated successfully.");
       } else {
         await axios.post("/api/admin/users", {
           name,
@@ -91,37 +92,42 @@ const Users = () => {
           role,
           walletAddress
         });
-        setSuccess("User account created successfully.");
+        setSuccess("New agency profile registered successfully.");
       }
       setShowModal(false);
       fetchUsers();
     } catch (err) {
-      setError(err.response?.data?.error || "User transaction failed.");
+      setError(err.response?.data?.error || "User operation failed.");
     } finally {
       setFormLoading(false);
     }
   };
 
   const handleDelete = async (userId) => {
-    if (!window.confirm("Are you sure you want to delete this user? This will revoke all node permissions.")) return;
+    if (!window.confirm("Are you sure you want to revoke node clearance for this user?")) return;
     setError("");
     setSuccess("");
     try {
       await axios.delete(`/api/admin/users/${userId}`);
-      setSuccess("User account deleted successfully.");
+      setSuccess("User account access revoked.");
       fetchUsers();
     } catch (err) {
-      setError(err.response?.data?.error || "Failed to delete user account.");
+      setError(err.response?.data?.error || "Failed to delete user profile.");
     }
   };
 
-  const getRoleBadgeColor = (role) => {
+  const getRoleBadge = (role) => {
     switch (role) {
-      case "admin": return "bg-red-500/10 text-red-400 border-red-500/20";
-      case "investigator": return "bg-cyan-500/10 text-cyan-400 border-cyan-500/20";
-      case "analyst": return "bg-purple-500/10 text-purple-400 border-purple-500/20";
-      case "court": return "bg-green-500/10 text-green-400 border-green-500/20";
-      default: return "bg-gray-500/10 text-gray-400 border-gray-800";
+      case "admin": 
+        return <span className="px-2.5 py-0.5 rounded text-[10px] uppercase font-mono font-bold bg-slate-100 text-slate-800 border border-slate-300">Administrator</span>;
+      case "investigator": 
+        return <span className="px-2.5 py-0.5 rounded text-[10px] uppercase font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">Investigator</span>;
+      case "analyst": 
+        return <span className="px-2.5 py-0.5 rounded text-[10px] uppercase font-mono font-bold bg-purple-50 text-purple-700 border border-purple-200">Forensic Analyst</span>;
+      case "court": 
+        return <span className="px-2.5 py-0.5 rounded text-[10px] uppercase font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Judicial Official</span>;
+      default: 
+        return <span className="px-2.5 py-0.5 rounded text-[10px] uppercase font-mono font-bold bg-slate-50 text-slate-600 border border-slate-200">{role}</span>;
     }
   };
 
@@ -131,82 +137,81 @@ const Users = () => {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-xl font-tech font-bold text-cyan-400 tracking-wide">NODE ACCESS MANAGEMENT</h2>
-          <p className="text-xs text-cyber-muted">Manage system authentication profiles, roles, and connected crypto keys.</p>
+          <h1 className="text-xl font-bold text-slate-900">Node Clearance & Identity Management</h1>
+          <p className="text-xs text-slate-500">Manage investigator credentials, judicial roles, and connected Ethereum wallet addresses.</p>
         </div>
         <button
           onClick={handleOpenCreate}
-          className="flex items-center gap-1.5 px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-gray-950 font-semibold rounded-lg text-sm transition-all cursor-pointer"
+          className="flex items-center gap-1.5 px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg text-sm transition-all shadow-xs cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          Create User Account
+          Add Authorized User
         </button>
       </div>
 
       {error && (
-        <div className="p-4 bg-red-950/20 border border-red-500/30 rounded-lg text-red-400 text-xs flex items-center gap-2">
-          <AlertCircle className="w-4.5 h-4.5" />
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs flex items-center gap-2">
+          <AlertCircle className="w-4 h-4" />
           {error}
         </div>
       )}
 
       {success && (
-        <div className="p-4 bg-emerald-950/20 border border-emerald-500/30 rounded-lg text-emerald-400 text-xs">
+        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700 text-xs flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4" />
           {success}
         </div>
       )}
 
       {/* Users Grid */}
       {loading ? (
-        <div className="py-24 flex flex-col items-center justify-center text-cyan-400 font-mono text-xs">
-          <div className="w-8 h-8 border-3 border-t-cyan-400 border-r-transparent border-b-cyan-400 border-l-transparent rounded-full animate-spin mb-3"></div>
-          SYNCING USER ACCOUNTS...
+        <div className="py-24 flex flex-col items-center justify-center text-blue-700 font-medium text-xs">
+          <div className="w-8 h-8 border-3 border-blue-700 border-t-transparent rounded-full animate-spin mb-3"></div>
+          Syncing authorized profiles...
         </div>
       ) : (
-        <div className="bg-[#151B2C]/30 border border-[#1F2937] rounded-xl overflow-hidden">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-gray-800 bg-[#111827]/40 text-cyber-muted uppercase tracking-wider">
-                  <th className="py-3.5 px-6">Name</th>
+                <tr className="border-b border-slate-200 bg-slate-50/70 text-slate-600 uppercase tracking-wider font-semibold">
+                  <th className="py-3.5 px-6">Official Name</th>
                   <th className="py-3.5 px-6">Security Email</th>
                   <th className="py-3.5 px-6">Role Clearance</th>
-                  <th className="py-3.5 px-6">Cryptographic Wallet Address</th>
+                  <th className="py-3.5 px-6">Ethereum Custodian Address</th>
                   <th className="py-3.5 px-6 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-800/40">
+              <tbody className="divide-y divide-slate-100">
                 {users.map((u) => (
-                  <tr key={u.id} className="hover:bg-[#151B2C]/20 transition-colors">
-                    <td className="py-4 px-6 font-semibold text-cyan-100">{u.name}</td>
-                    <td className="py-4 px-6 text-gray-300 font-mono">{u.email}</td>
+                  <tr key={u.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="py-4 px-6 font-semibold text-slate-900">{u.name}</td>
+                    <td className="py-4 px-6 text-slate-600 font-mono text-[11px]">{u.email}</td>
                     <td className="py-4 px-6">
-                      <span className={`px-2.5 py-0.5 rounded text-[10px] uppercase font-mono font-bold border ${getRoleBadgeColor(u.role)}`}>
-                        {u.role}
-                      </span>
+                      {getRoleBadge(u.role)}
                     </td>
-                    <td className="py-4 px-6 text-cyber-muted font-mono" title={u.walletAddress}>
+                    <td className="py-4 px-6 font-mono text-slate-600" title={u.walletAddress}>
                       {u.walletAddress ? (
-                        <span className="flex items-center gap-1.5 text-cyan-200">
-                          <Wallet className="w-3.5 h-3.5 text-cyber-muted" />
-                          {u.walletAddress}
+                        <span className="flex items-center gap-1.5 text-slate-800">
+                          <Wallet className="w-3.5 h-3.5 text-slate-400" />
+                          <span className="truncate max-w-xs">{u.walletAddress}</span>
                         </span>
                       ) : (
-                        "None Set"
+                        <span className="text-slate-400 italic">No wallet configured</span>
                       )}
                     </td>
                     <td className="py-4 px-6 text-right space-x-2">
                       <button
                         onClick={() => handleOpenEdit(u)}
-                        className="p-1.5 bg-[#151B2C] hover:bg-cyan-500/10 text-cyan-400 hover:text-cyan-300 border border-gray-800 rounded transition-all cursor-pointer inline-block"
+                        className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md transition-all cursor-pointer inline-block"
                         title="Edit User"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => handleDelete(u.id)}
-                        className="p-1.5 bg-red-950/20 hover:bg-red-500/20 text-red-400 border border-red-950/30 rounded transition-all cursor-pointer inline-block"
-                        title="Delete User"
+                        className="p-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-md transition-all cursor-pointer inline-block"
+                        title="Revoke User"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -221,98 +226,97 @@ const Users = () => {
 
       {/* User Create/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-[#0B0F19]/80 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-          <div className="w-full max-w-lg bg-[#111827] border border-[#1F2937] rounded-xl shadow-2xl p-6 relative">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-6">
+          <div className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl shadow-2xl p-6 relative">
             <button 
               onClick={() => setShowModal(false)}
-              className="absolute right-4 top-4 text-cyber-muted hover:text-cyan-400 cursor-pointer"
+              className="absolute right-4 top-4 text-slate-400 hover:text-slate-700 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
             
-            <h3 className="font-tech text-base font-bold text-cyan-400 mb-2 uppercase flex items-center gap-2">
-              <UsersIcon className="w-5 h-5 text-cyan-400" />
-              {isEditing ? "Modify Clearance Profile" : "Create Security Profile"}
+            <h3 className="text-base font-bold text-slate-900 mb-1">
+              {isEditing ? "Modify Personnel Clearance" : "Register Agency Profile"}
             </h3>
-            <p className="text-xs text-gray-400 mb-6">
-              Clearance permissions and Ethereum blockchain keys will map to this identity structure.
+            <p className="text-xs text-slate-500 mb-6">
+              Assign role clearances and cryptographic wallet addresses to this profile.
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] text-cyber-muted font-semibold uppercase block mb-1">Clearance Name</label>
+                  <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Full Legal Name *</label>
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g. Alice Jones"
-                    className="w-full bg-[#151B2C] border border-[#1F2937] focus:border-cyan-400 rounded-lg px-4 py-2.5 text-xs text-gray-100 focus:outline-none"
+                    className="w-full bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white rounded-lg px-4 py-2.5 text-xs text-slate-900 focus:outline-none"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="text-[10px] text-cyber-muted font-semibold uppercase block mb-1">Clearance Level / Role</label>
+                  <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Clearance Role *</label>
                   <select
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
-                    className="w-full bg-[#151B2C] border border-[#1F2937] focus:border-cyan-400 rounded-lg px-4 py-2.5 text-xs text-gray-100 focus:outline-none"
+                    className="w-full bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white rounded-lg px-4 py-2.5 text-xs text-slate-900 focus:outline-none"
                     required
                   >
                     <option value="investigator">Investigator</option>
                     <option value="analyst">Forensic Analyst</option>
-                    <option value="court">Court Official</option>
-                    <option value="admin">Administrator</option>
+                    <option value="court">Judicial Official</option>
+                    <option value="admin">System Administrator</option>
                   </select>
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="text-[10px] text-cyber-muted font-semibold uppercase block mb-1">Security Email</label>
+                  <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Official Email *</label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="email@proofshield.com"
-                    className="w-full bg-[#151B2C] border border-[#1F2937] focus:border-cyan-400 rounded-lg px-4 py-2.5 text-xs text-gray-100 focus:outline-none"
+                    placeholder="officer@agency.gov"
+                    className="w-full bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white rounded-lg px-4 py-2.5 text-xs text-slate-900 focus:outline-none"
                     required
                   />
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="text-[10px] text-cyber-muted font-semibold uppercase block mb-1">
-                    Passkey {isEditing && "(Leave blank to keep current password)"}
+                  <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">
+                    Passkey {isEditing && "(Leave blank to keep existing password)"}
                   </label>
                   <input
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full bg-[#151B2C] border border-[#1F2937] focus:border-cyan-400 rounded-lg px-4 py-2.5 text-xs text-gray-100 focus:outline-none"
+                    className="w-full bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white rounded-lg px-4 py-2.5 text-xs text-slate-900 focus:outline-none"
                     required={!isEditing}
                   />
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="text-[10px] text-cyber-muted font-semibold uppercase block mb-1">Ethereum Wallet Address (Hex)</label>
+                  <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Ethereum Wallet Address (Hex)</label>
                   <div className="relative">
-                    <Wallet className="absolute left-3.5 top-3 w-4 h-4 text-cyber-muted" />
+                    <Wallet className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
                     <input
                       type="text"
                       value={walletAddress}
                       onChange={(e) => setWalletAddress(e.target.value)}
-                      placeholder="0x..."
-                      className="w-full bg-[#151B2C] border border-[#1F2937] focus:border-cyan-400 rounded-lg pl-10 pr-4 py-2.5 text-xs text-gray-100 focus:outline-none font-mono"
+                      placeholder="0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+                      className="w-full bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white rounded-lg pl-10 pr-4 py-2.5 text-xs text-slate-900 focus:outline-none font-mono"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-800">
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 border border-gray-800 hover:bg-gray-800 rounded-lg text-xs font-semibold text-cyber-muted hover:text-gray-100"
+                  className="px-4 py-2 border border-slate-300 hover:bg-slate-50 rounded-lg text-xs font-semibold text-slate-700"
                   disabled={formLoading}
                 >
                   Cancel
@@ -320,12 +324,12 @@ const Users = () => {
                 <button
                   type="submit"
                   disabled={formLoading}
-                  className="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-gray-950 font-semibold rounded-lg text-xs tracking-wide flex items-center gap-1.5"
+                  className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg text-xs tracking-wide flex items-center gap-1.5 shadow-xs"
                 >
                   {formLoading ? (
-                    <div className="w-4 h-4 border-2 border-gray-950 border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   ) : (
-                    isEditing ? "Save Profile" : "Register User"
+                    isEditing ? "Save Changes" : "Register Personnel"
                   )}
                 </button>
               </div>
