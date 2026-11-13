@@ -13,6 +13,8 @@ import VerifyEvidence from "./pages/VerifyEvidence";
 import ChainOfCustody from "./pages/ChainOfCustody";
 import BlockchainRecords from "./pages/BlockchainRecords";
 import Users from "./pages/Users";
+import AuditLedger from "./pages/AuditLedger";
+import SystemHealth from "./pages/SystemHealth";
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }) => {
@@ -67,6 +69,8 @@ function App() {
             <Route path="verify" element={<VerifyEvidence />} />
             <Route path="custody" element={<ChainOfCustody />} />
             <Route path="blockchain-records" element={<BlockchainRecords />} />
+            <Route path="audit-logs" element={<AuditLedger />} />
+            <Route path="system-health" element={<SystemHealth />} />
             
             {/* Admin only routes */}
             <Route

@@ -13,28 +13,54 @@ import {
   AlertCircle,
   FileText,
   History,
-  X
+  X,
+  CheckCircle2,
+  Users,
+  Activity,
+  Download,
+  AlertTriangle,
+  Lock,
+  Tag,
+  Flag,
+  Edit2
 } from "lucide-react";
 
 const Cases = () => {
   const { caseId } = useParams();
   const navigate = useNavigate();
-  const { hasRole } = useAuth();
+  const { user, hasRole } = useAuth();
   
   // Lists state
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [filterCategory, setFilterCategory] = useState("ALL");
+  const [filterPriority, setFilterPriority] = useState("ALL");
 
   // Details state
   const [currentCase, setCurrentCase] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview"); // overview, evidence, team, activities, reports, closure
+  const [activities, setActivities] = useState([]);
+  const [usersList, setUsersList] = useState([]);
 
-  // Create Case state
+  // Create Case modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
+  const [newCategory, setNewCategory] = useState("Digital Forensics");
+  const [newPriority, setNewPriority] = useState("Medium");
   const [createLoading, setCreateLoading] = useState(false);
+
+  // Close Case modal state
+  const [showCloseModal, setShowCloseModal] = useState(false);
+  const [closureReason, setClosureReason] = useState("");
+  const [closeLoading, setCloseLoading] = useState(false);
+
+  // Team assign state
+  const [assignInvestigator, setAssignInvestigator] = useState("");
+  const [assignAnalyst, setAssignAnalyst] = useState("");
+  const [assignLoading, setAssignLoading] = useState(false);
 
   const fetchCases = async () => {
     setLoading(true);
@@ -53,6 +79,16 @@ const Cases = () => {
     try {
       const response = await axios.get(`/api/cases/${id}`);
       setCurrentCase(response.data);
+      setAssignInvestigator(response.data.assignedInvestigatorId || "");
+      setAssignAnalyst(response.data.assignedAnalystId || "");
+      
+      // Also fetch activities
+      try {
+        const actRes = await axios.get(`/api/cases/${id}/activities`);
+        setActivities(actRes.data || []);
+      } catch (e) {
+        // Non-blocking
+      }
     } catch (err) {
       setError("Failed to load case details.");
     } finally {
@@ -60,13 +96,24 @@ const Cases = () => {
     }
   };
 
+  const fetchUsers = async () => {
+    try {
+      const res = await axios.get("/api/admin/users");
+      setUsersList(res.data || []);
+    } catch (e) {
+      // Non-blocking
+    }
+  };
+
   useEffect(() => {
     fetchCases();
+    fetchUsers();
   }, []);
 
   useEffect(() => {
     if (caseId) {
       fetchCaseDetails(caseId);
+      setActiveTab("overview");
     } else {
       setCurrentCase(null);
     }
@@ -80,7 +127,9 @@ const Cases = () => {
     try {
       await axios.post("/api/cases", {
         title: newTitle,
-        description: newDesc
+        description: newDesc,
+        category: newCategory,
+        priority: newPriority
       });
       setNewTitle("");
       setNewDesc("");
@@ -93,13 +142,85 @@ const Cases = () => {
     }
   };
 
+  const handleCloseCase = async (e) => {
+    e.preventDefault();
+    if (!closureReason) return;
+
+    setCloseLoading(true);
+    try {
+      await axios.post(`/api/cases/${caseId}/close`, { closureReason });
+      setShowCloseModal(false);
+      setClosureReason("");
+      fetchCaseDetails(caseId);
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to close case.");
+    } finally {
+      setCloseLoading(false);
+    }
+  };
+
+  const handleSaveTeam = async () => {
+    setAssignLoading(true);
+    try {
+      await axios.patch(`/api/cases/${caseId}`, {
+        assignedInvestigatorId: assignInvestigator || null,
+        assignedAnalystId: assignAnalyst || null
+      });
+      fetchCaseDetails(caseId);
+      alert("Case personnel assignments updated successfully.");
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to update team members.");
+    } finally {
+      setAssignLoading(false);
+    }
+  };
+
+  const handleDownloadCaseReport = async () => {
+    try {
+      const res = await axios.get(`/api/reports/case/${caseId}`);
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(res.data, null, 2));
+      const downloadAnchor = document.createElement("a");
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `Case_Summary_Report_${currentCase.caseNumber}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    } catch (e) {
+      alert("Failed to export case report.");
+    }
+  };
+
+  const getPriorityBadge = (priority) => {
+    switch (priority) {
+      case "Critical": return "bg-red-50 text-red-700 border-red-200 font-bold";
+      case "High": return "bg-amber-50 text-amber-700 border-amber-200 font-semibold";
+      case "Medium": return "bg-blue-50 text-blue-700 border-blue-200";
+      default: return "bg-slate-50 text-slate-600 border-slate-200";
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case "Closed": return "bg-slate-100 text-slate-700 border-slate-300 font-bold";
+      case "Under Investigation": return "bg-blue-50 text-blue-700 border-blue-200 font-semibold";
+      case "Pending Review": return "bg-purple-50 text-purple-700 border-purple-200 font-semibold";
+      default: return "bg-emerald-50 text-emerald-700 border-emerald-200 font-semibold";
+    }
+  };
+
+  const filteredCases = cases.filter(c => {
+    if (filterCategory !== "ALL" && c.category !== filterCategory) return false;
+    if (filterPriority !== "ALL" && c.priority !== filterPriority) return false;
+    return true;
+  });
+
   // -------------------------------------------------------------
-  // DETAIL VIEW
+  // DEDICATED 6-TAB CASE DETAILS WORKSPACE VIEW
   // -------------------------------------------------------------
   if (currentCase) {
     return (
       <div className="space-y-6">
-        {/* Breadcrumb */}
+        {/* Breadcrumb Navigation */}
         <button
           onClick={() => navigate("/cases")}
           className="flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-blue-700 transition-colors cursor-pointer"
@@ -108,114 +229,332 @@ const Cases = () => {
           Back to Case Catalog
         </button>
 
-        {/* Case Header Card */}
-        <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-xl shadow-xs">
+        {/* Case Header Banner */}
+        <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-2xl shadow-xs">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-              <span className="text-xs font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded inline-block mb-2">
-                {currentCase.caseNumber}
-              </span>
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <span className="text-xs font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded">
+                  {currentCase.caseNumber}
+                </span>
+                <span className={`text-[11px] uppercase px-2.5 py-0.5 rounded border ${getStatusBadge(currentCase.status)}`}>
+                  {currentCase.status}
+                </span>
+                <span className={`text-[11px] uppercase px-2.5 py-0.5 rounded border ${getPriorityBadge(currentCase.priority)}`}>
+                  PRIORITY: {currentCase.priority}
+                </span>
+                <span className="text-[11px] bg-slate-50 text-slate-600 border border-slate-200 px-2.5 py-0.5 rounded">
+                  {currentCase.category || "General Forensics"}
+                </span>
+              </div>
               <h2 className="text-2xl font-bold text-slate-900">{currentCase.title}</h2>
-              <p className="text-sm text-slate-600 mt-2 max-w-2xl leading-relaxed">
-                {currentCase.description || "No official description provided."}
+              <p className="text-xs text-slate-500 mt-1 max-w-2xl leading-relaxed">
+                {currentCase.description || "No official description recorded."}
               </p>
             </div>
             
-            <div className="text-xs space-y-2 border-l border-slate-200 pl-4 py-2 flex-shrink-0 text-slate-600">
-              <div className="flex items-center gap-2">
-                <User className="w-4 h-4 text-blue-700" />
-                <span>Opened By: <strong className="text-slate-900">{currentCase.creator?.name || "Authorized Investigator"}</strong></span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-blue-700" />
-                <span>Created: {new Date(currentCase.createdAt).toLocaleDateString()}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Evidence Vault under this Case */}
-        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs">
-          <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
-            <div>
-              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800">
-                Registered Evidence Vault
-              </h3>
-              <p className="text-xs text-slate-500">Digital assets cryptographically associated with this case file.</p>
-            </div>
-            {hasRole(["admin", "investigator"]) && (
-              <Link
-                to={`/register?caseId=${currentCase.id}`}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg font-semibold text-xs transition-all shadow-xs"
-              >
-                <Plus className="w-4 h-4" />
-                Register New Evidence
-              </Link>
-            )}
-          </div>
-
-          {detailsLoading ? (
-            <div className="py-12 flex items-center justify-center text-blue-700 font-medium text-xs">
-              <div className="w-6 h-6 border-2 border-blue-700 border-t-transparent rounded-full animate-spin mr-3"></div>
-              Loading encrypted vault records...
-            </div>
-          ) : !currentCase.evidenceItems || currentCase.evidenceItems.length === 0 ? (
-            <div className="py-12 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-500">
-              <FileCheck className="w-10 h-10 text-slate-300 mb-2" />
-              <p className="text-sm font-semibold text-slate-700">No evidence items registered under this case.</p>
+            <div className="flex flex-wrap gap-2.5">
+              {currentCase.status !== "Closed" && hasRole(["admin", "investigator"]) && (
+                <button
+                  onClick={() => setShowCloseModal(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 font-semibold rounded-lg text-xs transition-all cursor-pointer shadow-xs"
+                >
+                  <Lock className="w-3.5 h-3.5 text-slate-500" />
+                  Close & Archive Case
+                </button>
+              )}
               {hasRole(["admin", "investigator"]) && (
-                <p className="text-xs text-slate-400 mt-1">Use the "Register New Evidence" button to secure forensic files.</p>
+                <Link
+                  to={`/register?caseId=${currentCase.id}`}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg text-xs transition-all shadow-xs"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Evidence File
+                </Link>
               )}
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50/70 text-slate-600 uppercase tracking-wider font-semibold">
-                    <th className="py-3 px-4">Evidence File</th>
-                    <th className="py-3 px-4">Type</th>
-                    <th className="py-3 px-4">SHA-256 Checksum</th>
-                    <th className="py-3 px-4">Current Custodian</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {currentCase.evidenceItems.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="py-3.5 px-4 font-semibold text-slate-900">{item.evidenceName}</td>
-                      <td className="py-3.5 px-4 text-slate-500 font-mono text-[11px]">{item.fileType}</td>
-                      <td className="py-3.5 px-4 font-mono text-slate-600" title={item.fileHash}>
-                        {item.fileHash.substring(0, 16)}...
-                      </td>
-                      <td className="py-3.5 px-4 text-slate-700">{item.custodian?.name || "Unassigned"}</td>
-                      <td className="py-3.5 px-4">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          {item.status}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-right space-x-2">
-                        <Link
-                          to={`/custody?evidenceId=${item.id}`}
-                          className="px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded font-semibold text-[11px] transition-all inline-flex items-center gap-1"
-                        >
-                          <History className="w-3 h-3" />
-                          Custody
-                        </Link>
-                        <Link
-                          to={`/evidence/${item.id}`}
-                          className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded font-semibold text-[11px] transition-all inline-block"
-                        >
-                          View Dossier &rarr;
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          </div>
         </div>
+
+        {/* 6-Tab Navigation Bar */}
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+          <div className="flex border-b border-slate-200 overflow-x-auto text-xs font-bold uppercase tracking-wider bg-slate-50/50">
+            {[
+              { id: "overview", label: "Overview", icon: FolderLock },
+              { id: "evidence", label: `Evidence Vault (${currentCase.evidenceItems?.length || 0})`, icon: FileCheck },
+              { id: "team", label: "Team Members", icon: Users },
+              { id: "activities", label: `Activity Log (${activities.length})`, icon: Activity },
+              { id: "reports", label: "Forensic Reports", icon: FileText }
+            ].map(tab => {
+              const TabIcon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-6 py-3.5 cursor-pointer border-b-2 transition-all whitespace-nowrap ${
+                    isActive 
+                      ? "border-blue-700 text-blue-700 bg-white" 
+                      : "border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100/60"
+                  }`}
+                >
+                  <TabIcon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="p-6">
+            {/* Tab 1: Overview */}
+            {activeTab === "overview" && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <span className="text-[10px] text-slate-400 uppercase block font-semibold">Lead Investigator</span>
+                    <p className="text-slate-900 font-bold text-sm">
+                      {currentCase.assignedInvestigator?.name || currentCase.creator?.name || "Unassigned"}
+                    </p>
+                    <p className="text-slate-500 text-[11px] font-mono">{currentCase.assignedInvestigator?.email || "No email"}</p>
+                  </div>
+
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <span className="text-[10px] text-slate-400 uppercase block font-semibold">Assigned Forensic Analyst</span>
+                    <p className="text-slate-900 font-bold text-sm">
+                      {currentCase.assignedAnalyst?.name || "None Assigned"}
+                    </p>
+                    <p className="text-slate-500 text-[11px] font-mono">{currentCase.assignedAnalyst?.email || "Pending Analyst Assignment"}</p>
+                  </div>
+
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <span className="text-[10px] text-slate-400 uppercase block font-semibold">Timeline & Archive Status</span>
+                    <p className="text-slate-900 font-medium">Created: {new Date(currentCase.createdAt).toLocaleString()}</p>
+                    {currentCase.closedAt && (
+                      <p className="text-red-700 font-semibold text-[11px]">
+                        Closed on {new Date(currentCase.closedAt).toLocaleDateString()} by {currentCase.closer?.name || "Officer"}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {currentCase.closureReason && (
+                  <div className="p-4 bg-slate-100 border border-slate-300 rounded-xl text-xs space-y-1">
+                    <span className="font-bold uppercase text-slate-800 text-[10px] block">Official Case Closure Justification</span>
+                    <p className="text-slate-700 leading-relaxed">{currentCase.closureReason}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tab 2: Evidence Vault */}
+            {activeTab === "evidence" && (
+              <div className="space-y-4">
+                {!currentCase.evidenceItems || currentCase.evidenceItems.length === 0 ? (
+                  <div className="py-12 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-500">
+                    <FileCheck className="w-10 h-10 text-slate-300 mb-2" />
+                    <p className="text-sm font-semibold text-slate-700">No evidence items registered under this case yet.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 uppercase font-semibold">
+                          <th className="py-3 px-4">Evidence Title</th>
+                          <th className="py-3 px-4">Type</th>
+                          <th className="py-3 px-4">Current Custodian</th>
+                          <th className="py-3 px-4">Retention Status</th>
+                          <th className="py-3 px-4 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {currentCase.evidenceItems.map(item => (
+                          <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="py-3 px-4 font-semibold text-slate-900">{item.evidenceName}</td>
+                            <td className="py-3 px-4 font-mono text-[11px] text-slate-500">{item.fileType}</td>
+                            <td className="py-3 px-4 text-slate-700">{item.custodian?.name || "Evidence Room"}</td>
+                            <td className="py-3 px-4">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                item.retentionStatus === "Under Legal Hold"
+                                  ? "bg-purple-50 text-purple-700 border border-purple-200"
+                                  : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              }`}>
+                                {item.retentionStatus || "Active"}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-right space-x-2">
+                              <Link
+                                to={`/custody?evidenceId=${item.id}`}
+                                className="px-2.5 py-1 bg-purple-50 text-purple-700 border border-purple-200 rounded font-semibold text-[10px]"
+                              >
+                                Custody Trail
+                              </Link>
+                              <Link
+                                to={`/evidence/${item.id}`}
+                                className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded font-semibold text-[10px]"
+                              >
+                                View File &rarr;
+                              </Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tab 3: Team Members */}
+            {activeTab === "team" && (
+              <div className="max-w-xl space-y-5 text-xs">
+                <div>
+                  <label className="text-slate-700 font-semibold uppercase block mb-1.5">Assign Lead Investigator</label>
+                  <select
+                    value={assignInvestigator}
+                    onChange={(e) => setAssignInvestigator(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs"
+                    disabled={currentCase.status === "Closed" || !hasRole(["admin", "investigator"])}
+                  >
+                    <option value="">-- Select Investigator --</option>
+                    {usersList.filter(u => u.role === "investigator" || u.role === "admin").map(u => (
+                      <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-slate-700 font-semibold uppercase block mb-1.5">Assign Lead Forensic Analyst</label>
+                  <select
+                    value={assignAnalyst}
+                    onChange={(e) => setAssignAnalyst(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs"
+                    disabled={currentCase.status === "Closed" || !hasRole(["admin", "investigator"])}
+                  >
+                    <option value="">-- Select Forensic Analyst --</option>
+                    {usersList.filter(u => u.role === "analyst" || u.role === "admin").map(u => (
+                      <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+                    ))}
+                  </select>
+                </div>
+
+                {hasRole(["admin", "investigator"]) && currentCase.status !== "Closed" && (
+                  <button
+                    onClick={handleSaveTeam}
+                    disabled={assignLoading}
+                    className="px-5 py-2.5 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg text-xs cursor-pointer shadow-xs"
+                  >
+                    {assignLoading ? "Saving..." : "Save Personnel Assignments"}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Tab 4: Activity Log */}
+            {activeTab === "activities" && (
+              <div className="space-y-3">
+                {activities.length === 0 ? (
+                  <p className="text-xs text-slate-500 py-6 text-center">No audit activities logged for this case yet.</p>
+                ) : (
+                  activities.map(act => (
+                    <div key={act.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-start justify-between text-xs">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-bold text-slate-900">{act.action}</span>
+                          <span className="text-[10px] bg-white border border-slate-200 px-1.5 py-0.5 rounded text-slate-600 font-mono">
+                            {act.category}
+                          </span>
+                        </div>
+                        <p className="text-slate-600 text-[11px] leading-tight">
+                          By <strong className="text-slate-800">{act.actor?.name || "System"}</strong> ({act.actorRole || "User"})
+                          {act.details && ` — ${typeof act.details === "object" ? JSON.stringify(act.details) : act.details}`}
+                        </p>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-mono whitespace-nowrap">
+                        {new Date(act.timestamp).toLocaleString()}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Tab 5: Reports */}
+            {activeTab === "reports" && (
+              <div className="space-y-4 text-xs">
+                <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div>
+                    <h4 className="font-bold text-sm text-slate-900">Official Case Summary Dossier</h4>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Export comprehensive technical report containing full case metadata, registered evidence SHA-256 digests, and custodian histories.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleDownloadCaseReport}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg text-xs shadow-xs cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    Export Case Dossier (JSON/PDF)
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Case Closure Confirmation Modal */}
+        {showCloseModal && (
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-6">
+            <div className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl shadow-2xl p-6 relative">
+              <button 
+                onClick={() => setShowCloseModal(false)}
+                className="absolute right-4 top-4 text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <h3 className="text-base font-bold text-slate-900 mb-1 flex items-center gap-2">
+                <Lock className="w-5 h-5 text-red-600" />
+                Case Closure Confirmation
+              </h3>
+              <p className="text-xs text-slate-500 mb-6">
+                Closing this case marks all evidence items as immutable archives. You must provide a formal statutory closure reason.
+              </p>
+
+              <form onSubmit={handleCloseCase} className="space-y-4">
+                <div>
+                  <label className="text-xs text-slate-700 font-semibold uppercase block mb-1.5">
+                    Formal Closure Reason & Justification *
+                  </label>
+                  <textarea
+                    value={closureReason}
+                    onChange={(e) => setClosureReason(e.target.value)}
+                    placeholder="e.g. Adjudicated in district court. All evidentiary requirements satisfied."
+                    rows={4}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-xs text-slate-900 focus:outline-none focus:border-blue-600 resize-none"
+                    required
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowCloseModal(false)}
+                    className="px-4 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={closeLoading}
+                    className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white font-semibold rounded-lg text-xs"
+                  >
+                    {closeLoading ? "Archiving..." : "Confirm & Seal Case"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -242,6 +581,43 @@ const Cases = () => {
         )}
       </div>
 
+      {/* Filter Toolbar */}
+      <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-xs flex flex-wrap gap-4 items-center justify-between text-xs">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-slate-600">Category:</span>
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="bg-slate-50 border border-slate-300 rounded-md px-2.5 py-1.5 text-xs text-slate-800"
+            >
+              <option value="ALL">All Categories</option>
+              <option value="Physical Security Breach & Theft">Physical Security Breach</option>
+              <option value="Corporate Cyber Espionage">Corporate Cyber Espionage</option>
+              <option value="Critical Infrastructure Cyber Incident">Critical Infrastructure</option>
+              <option value="Digital Forensics">Digital Forensics</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-slate-600">Priority:</span>
+            <select
+              value={filterPriority}
+              onChange={(e) => setFilterPriority(e.target.value)}
+              className="bg-slate-50 border border-slate-300 rounded-md px-2.5 py-1.5 text-xs text-slate-800"
+            >
+              <option value="ALL">All Priorities</option>
+              <option value="Critical">Critical</option>
+              <option value="High">High</option>
+              <option value="Medium">Medium</option>
+              <option value="Low">Low</option>
+            </select>
+          </div>
+        </div>
+
+        <span className="text-slate-400 font-mono text-[11px]">{filteredCases.length} Cases matching filter</span>
+      </div>
+
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs flex items-center gap-2">
           <AlertCircle className="w-4 h-4" />
@@ -254,47 +630,50 @@ const Cases = () => {
           <div className="w-8 h-8 border-3 border-blue-700 border-t-transparent rounded-full animate-spin mb-3"></div>
           Retrieving official case dossiers...
         </div>
-      ) : cases.length === 0 ? (
+      ) : filteredCases.length === 0 ? (
         <div className="py-24 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-500 bg-white">
           <FolderLock className="w-12 h-12 text-slate-300 mb-2" />
-          <p className="text-sm font-semibold text-slate-700">No active cases found in system records.</p>
-          {hasRole(["admin", "investigator"]) && (
-            <p className="text-xs text-slate-400 mt-1">Click "Initialize New Case" to open an investigation dossier.</p>
-          )}
+          <p className="text-sm font-semibold text-slate-700">No matching cases found in system records.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {cases.map((c) => (
-            <div key={c.id} className="bg-white border border-slate-200 hover:border-blue-400 hover:shadow-md p-6 rounded-xl flex flex-col justify-between transition-all group">
+          {filteredCases.map((c) => (
+            <div key={c.id} className="bg-white border border-slate-200 hover:border-blue-400 hover:shadow-md p-6 rounded-2xl flex flex-col justify-between transition-all group">
               <div>
                 <div className="flex justify-between items-start mb-3">
                   <span className="text-[11px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded">
                     {c.caseNumber}
                   </span>
-                  <span className="text-[11px] text-slate-400 font-mono flex items-center gap-1">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    {new Date(c.createdAt).toLocaleDateString()}
+                  <span className={`text-[10px] uppercase px-2 py-0.5 rounded border ${getStatusBadge(c.status)}`}>
+                    {c.status}
                   </span>
                 </div>
                 <h3 className="text-base font-bold text-slate-900 group-hover:text-blue-700 transition-colors mb-2">
                   {c.title}
                 </h3>
                 <p className="text-xs text-slate-600 leading-relaxed mb-4 line-clamp-3">
-                  {c.description || "No case description provided."}
+                  {c.description || "No case description recorded."}
                 </p>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className={`text-[10px] uppercase px-2 py-0.5 rounded border ${getPriorityBadge(c.priority)}`}>
+                    {c.priority}
+                  </span>
+                  <span className="text-[10px] bg-slate-50 text-slate-600 border border-slate-200 px-2 py-0.5 rounded truncate max-w-[150px]">
+                    {c.category}
+                  </span>
+                </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-xs text-slate-500 flex items-center gap-1.5 font-medium">
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
+                <span className="text-slate-500 font-medium flex items-center gap-1.5">
                   <FileCheck className="w-4 h-4 text-purple-600" />
-                  {c.evidenceItems?.length || 0} Evidence Files
+                  {c.evidenceItems?.length || 0} Assets
                 </span>
-                
                 <Link
                   to={`/cases/${c.id}`}
-                  className="text-xs text-blue-700 hover:text-blue-900 font-semibold flex items-center gap-1"
+                  className="text-blue-700 hover:text-blue-900 font-semibold flex items-center gap-1"
                 >
-                  View Case &rarr;
+                  Open Workspace &rarr;
                 </Link>
               </div>
             </div>
@@ -302,7 +681,7 @@ const Cases = () => {
         </div>
       )}
 
-      {/* Initialize Dossier Modal */}
+      {/* Initialize Case Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-6">
           <div className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl shadow-2xl p-6 relative">
@@ -329,6 +708,36 @@ const Cases = () => {
                 />
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Category</label>
+                  <select
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs"
+                  >
+                    <option value="Physical Security Breach & Theft">Physical Security Breach</option>
+                    <option value="Corporate Cyber Espionage">Corporate Cyber Espionage</option>
+                    <option value="Critical Infrastructure Cyber Incident">Critical Infrastructure</option>
+                    <option value="Digital Forensics">Digital Forensics</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Priority</label>
+                  <select
+                    value={newPriority}
+                    onChange={(e) => setNewPriority(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs"
+                  >
+                    <option value="Critical">Critical</option>
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
+                  </select>
+                </div>
+              </div>
+
               <div>
                 <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Investigation Scope / Summary</label>
                 <textarea
@@ -353,11 +762,7 @@ const Cases = () => {
                   disabled={createLoading}
                   className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg text-xs tracking-wide flex items-center gap-1.5 shadow-xs"
                 >
-                  {createLoading ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  ) : (
-                    "Create Case Dossier"
-                  )}
+                  {createLoading ? "Creating..." : "Create Case Dossier"}
                 </button>
               </div>
             </form>

@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
+import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import { 
   ShieldCheck, 
@@ -12,16 +13,60 @@ import {
   Cpu, 
   Users, 
   LogOut,
-  UserCheck,
-  CheckCircle2,
-  FileSearch,
-  Lock
+  Bell,
+  Activity,
+  FileText,
+  X,
+  Check,
+  ExternalLink
 } from "lucide-react";
 
 const MainLayout = () => {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await axios.get("/api/notifications");
+      setNotifications(res.data.notifications || []);
+      setUnreadCount(res.data.unreadCount || 0);
+    } catch (e) {
+      // Non-blocking
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleMarkAsRead = async (id, link) => {
+    try {
+      await axios.patch(`/api/notifications/${id}/read`);
+      fetchNotifications();
+      if (link) {
+        setShowNotifDropdown(false);
+        navigate(link);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await axios.post("/api/notifications/mark-all-read");
+      fetchNotifications();
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -36,6 +81,8 @@ const MainLayout = () => {
     { name: "Verify & Tamper Audit", path: "/verify", icon: SearchCode, roles: ["admin", "investigator", "analyst", "court"] },
     { name: "Chain of Custody", path: "/custody", icon: History, roles: ["admin", "investigator", "analyst", "court"] },
     { name: "Blockchain Ledger", path: "/blockchain-records", icon: Cpu, roles: ["admin", "investigator", "analyst", "court"] },
+    { name: "Audit Ledger", path: "/audit-logs", icon: FileText, roles: ["admin", "court"] },
+    { name: "System Diagnostics", path: "/system-health", icon: Activity, roles: ["admin", "court"] },
     { name: "User Clearances", path: "/users", icon: Users, roles: ["admin"] }
   ];
 
@@ -137,30 +184,85 @@ const MainLayout = () => {
       <div className="flex-1 flex flex-col min-w-0">
         
         {/* Top Institutional Header */}
-        <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-8 z-10 shadow-xs">
+        <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-8 z-10 shadow-xs relative">
           <div className="flex items-center gap-4 text-xs">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium text-[11px]">
               <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
-              Ledger Connected: Ethereum Local Node (Chain 1337)
+              Ledger Connected: Ethereum Node (Chain 1337)
             </span>
             <span className="hidden md:inline text-slate-400">|</span>
             <span className="hidden md:inline text-slate-500 font-medium text-[11px]">
-              Federal Rules of Evidence FRE 902(13)/(14) Certified
+              FRE 902(13)/(14) & BSA 2023 Sec 63 Forensic Architecture
             </span>
           </div>
 
-          <div className="flex items-center gap-6 text-xs text-slate-600">
+          <div className="flex items-center gap-5 text-xs text-slate-600">
+            {/* Notification Bell */}
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifDropdown(!showNotifDropdown)}
+                className="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 relative cursor-pointer"
+                title="Notifications"
+              >
+                <Bell className="w-4 h-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-600 text-white text-[9px] font-bold flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Notification Dropdown Drawer */}
+              {showNotifDropdown && (
+                <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden">
+                  <div className="p-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                    <span className="font-bold text-xs uppercase text-slate-800">Notifications ({unreadCount})</span>
+                    {unreadCount > 0 && (
+                      <button 
+                        onClick={handleMarkAllRead}
+                        className="text-[10px] text-blue-700 hover:underline font-semibold cursor-pointer"
+                      >
+                        Mark All Read
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-72 overflow-y-auto divide-y divide-slate-100">
+                    {notifications.length === 0 ? (
+                      <div className="p-6 text-center text-slate-400 text-xs">
+                        No notifications found.
+                      </div>
+                    ) : (
+                      notifications.map(n => (
+                        <div 
+                          key={n.id} 
+                          onClick={() => handleMarkAsRead(n.id, n.link)}
+                          className={`p-3 text-xs hover:bg-slate-50 cursor-pointer transition-colors ${!n.isRead ? "bg-blue-50/50" : ""}`}
+                        >
+                          <div className="flex justify-between items-start mb-0.5">
+                            <span className="font-bold text-slate-900">{n.title}</span>
+                            <span className="text-[10px] text-slate-400">{new Date(n.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                          </div>
+                          <p className="text-slate-600 text-[11px] leading-tight">{n.message}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="h-4 w-px bg-slate-200"></div>
+
             <div className="hidden sm:flex items-center gap-2">
-              <span className="text-[11px] text-slate-500 font-medium">Hashing Standard:</span>
+              <span className="text-[11px] text-slate-500 font-medium">Hashing:</span>
               <span className="font-mono font-semibold text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
                 SHA-256 (FIPS 180-4)
               </span>
             </div>
-            <div className="h-4 w-px bg-slate-200"></div>
             <div className="hidden sm:flex items-center gap-2">
-              <span className="text-[11px] text-slate-500 font-medium">Off-Chain Storage:</span>
+              <span className="text-[11px] text-slate-500 font-medium">Off-Chain:</span>
               <span className="font-mono font-semibold text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
-                IPFS Protocol
+                IPFS
               </span>
             </div>
           </div>

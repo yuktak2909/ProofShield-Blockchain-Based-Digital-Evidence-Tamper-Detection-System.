@@ -16,7 +16,7 @@ const CustodyLog = sequelize.define("CustodyLog", {
     allowNull: false,
   },
   action: {
-    type: DataTypes.ENUM("viewed", "downloaded", "transferred"),
+    type: DataTypes.ENUM("viewed", "downloaded", "transferred", "transfer_initiated", "transfer_accepted", "transfer_rejected", "transfer_cancelled", "legal_hold_applied", "legal_hold_released"),
     allowNull: false,
   },
   previousCustodian: {
@@ -26,6 +26,26 @@ const CustodyLog = sequelize.define("CustodyLog", {
   newCustodian: {
     type: DataTypes.UUID,
     allowNull: true,
+  },
+  transferState: {
+    type: DataTypes.ENUM("Pending", "Accepted", "Rejected", "Cancelled", "Completed"),
+    defaultValue: "Completed",
+  },
+  reason: {
+    type: DataTypes.TEXT,
+    allowNull: true, // Reason for transfer or rejection
+  },
+  notes: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+  evidenceCondition: {
+    type: DataTypes.STRING,
+    defaultValue: "Intact / Verified Cryptographic Container", // Intact, Sealed, Degraded, etc.
+  },
+  digitalSignature: {
+    type: DataTypes.TEXT,
+    allowNull: true, // Cryptographic signature commitment
   },
   blockchainTxId: {
     type: DataTypes.STRING,
@@ -37,6 +57,7 @@ const CustodyLog = sequelize.define("CustodyLog", {
   },
 }, {
   tableName: "custody_logs",
+  timestamps: true,
 });
 
 module.exports = CustodyLog;

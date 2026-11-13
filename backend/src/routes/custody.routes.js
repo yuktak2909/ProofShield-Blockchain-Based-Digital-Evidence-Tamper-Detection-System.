@@ -5,10 +5,13 @@ const { protect, restrictTo } = require("../middleware/auth");
 
 router.use(protect);
 
-// These will be mounted under /api/evidence
 router.post("/:id/view", custodyController.viewEvidence);
 router.post("/:id/download", custodyController.downloadEvidence);
-router.post("/:id/transfer", restrictTo("admin", "investigator", "analyst"), custodyController.transferCustody);
+router.post("/:id/transfer", restrictTo("admin", "investigator", "analyst"), custodyController.initiateTransfer);
+router.post("/:id/transfer/initiate", restrictTo("admin", "investigator", "analyst"), custodyController.initiateTransfer);
+router.post("/:id/transfer/accept", restrictTo("admin", "investigator", "analyst", "court"), custodyController.acceptTransfer);
+router.post("/:id/transfer/reject", restrictTo("admin", "investigator", "analyst", "court"), custodyController.rejectTransfer);
+router.post("/:id/transfer/cancel", restrictTo("admin", "investigator", "analyst"), custodyController.cancelTransfer);
 router.get("/:id/custody", custodyController.getCustodyHistory);
 
 module.exports = router;

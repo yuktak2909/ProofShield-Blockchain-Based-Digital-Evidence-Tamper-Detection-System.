@@ -12,7 +12,10 @@ import {
   ArrowRight,
   Sparkles,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  HardDrive,
+  UserCheck,
+  Tag
 } from "lucide-react";
 
 const RegisterEvidence = () => {
@@ -24,15 +27,23 @@ const RegisterEvidence = () => {
   const [cases, setCases] = useState([]);
   const [caseId, setCaseId] = useState(preselectedCaseId);
   const [evidenceName, setEvidenceName] = useState("");
+  const [category, setCategory] = useState("Surveillance / Audio-Visual");
   const [description, setDescription] = useState("");
   const [collectionTimestamp, setCollectionTimestamp] = useState(new Date().toISOString().substring(0, 16));
   const [location, setLocation] = useState("");
+  
+  // Advanced Forensic Acquisition Fields
+  const [acquisitionSource, setAcquisitionSource] = useState("");
+  const [acquisitionMethod, setAcquisitionMethod] = useState("");
+  const [collectorIdentity, setCollectorIdentity] = useState("");
+  const [deviceInfo, setDeviceInfo] = useState("");
+  
   const [file, setFile] = useState(null);
   const [enablePHash, setEnablePHash] = useState(false);
 
   // Pipeline/Loading States
   const [loading, setLoading] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0); // 0: Idle, 1: Hashing, 2: IPFS, 3: Blockchain, 4: Database, 5: Finished
+  const [currentStep, setCurrentStep] = useState(0);
   const [successData, setSuccessData] = useState(null);
   const [error, setError] = useState("");
 
@@ -41,7 +52,7 @@ const RegisterEvidence = () => {
     { label: "IPFS Content Addressing", desc: "Sealing payload into content-addressed distributed storage", icon: UploadCloud },
     { label: "Ethereum Smart Contract Witness", desc: "Mining on-chain transaction to register immutable hash", icon: Cpu },
     { label: "PostgreSQL Audit Trail Index", desc: "Recording chain of custody logs and case relationships", icon: Database },
-    { label: "Evidence Verified & Sealed", desc: "Federal Rules of Evidence Rule 902(13)/(14) compliant", icon: ShieldCheck }
+    { label: "Evidence Verified & Sealed", desc: "Statutory electronic record witness and custody established", icon: ShieldCheck }
   ];
 
   useEffect(() => {
@@ -80,7 +91,7 @@ const RegisterEvidence = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!file || !caseId || !evidenceName) {
-      setError("Please select a target case, specify an evidence name, and attach a file.");
+      setError("Please select a target case, specify an evidence title, and attach a forensic file.");
       return;
     }
 
@@ -89,24 +100,26 @@ const RegisterEvidence = () => {
     setSuccessData(null);
     
     try {
-      // Step 1: Hashing simulation
       setCurrentStep(1);
-      await new Promise(r => setTimeout(r, 600));
+      await new Promise(r => setTimeout(r, 500));
 
-      // Step 2: IPFS
       setCurrentStep(2);
-      await new Promise(r => setTimeout(r, 600));
+      await new Promise(r => setTimeout(r, 500));
 
-      // Step 3: Blockchain
       setCurrentStep(3);
 
       const formData = new FormData();
       formData.append("file", file);
       formData.append("caseId", caseId);
       formData.append("evidenceName", evidenceName);
+      formData.append("category", category);
       formData.append("description", description);
       formData.append("collectionTimestamp", collectionTimestamp);
       formData.append("location", location);
+      formData.append("acquisitionSource", acquisitionSource);
+      formData.append("acquisitionMethod", acquisitionMethod);
+      formData.append("collectorIdentity", collectorIdentity);
+      formData.append("deviceInfo", deviceInfo);
       formData.append("enablePHash", enablePHash);
 
       const response = await axios.post("/api/evidence", formData, {
@@ -115,11 +128,9 @@ const RegisterEvidence = () => {
         }
       });
 
-      // Step 4: DB
       setCurrentStep(4);
-      await new Promise(r => setTimeout(r, 600));
+      await new Promise(r => setTimeout(r, 500));
 
-      // Step 5: Secured
       setCurrentStep(5);
       setSuccessData(response.data.evidence);
 
@@ -142,11 +153,11 @@ const RegisterEvidence = () => {
             <CheckCircle2 className="w-8 h-8" />
           </div>
           <span className="text-xs font-mono font-bold uppercase px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded">
-            CRYPTOGRAPHIC PROOF SEALED
+            CRYPTOGRAPHIC WITNESS ANCHORED
           </span>
           <h2 className="text-2xl font-bold text-slate-900 mt-2 mb-2">Evidence Cryptographically Secured</h2>
           <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
-            The digital asset has been securely stored on IPFS and its cryptographic SHA-256 fingerprint is permanently recorded on the Ethereum blockchain.
+            The digital asset has been sealed into content-addressed IPFS storage and its SHA-256 fingerprint is permanently recorded on the Ethereum blockchain ledger.
           </p>
         </div>
 
@@ -162,7 +173,7 @@ const RegisterEvidence = () => {
               <span className="text-slate-900 font-semibold block truncate">{successData.id}</span>
             </div>
             <div>
-              <span className="text-slate-400 block text-[10px] uppercase font-sans">Associated Case Dossier</span>
+              <span className="text-slate-400 block text-[10px] uppercase font-sans">Case Dossier Ref</span>
               <span className="text-slate-900 font-semibold block truncate">{successData.caseId}</span>
             </div>
             <div className="sm:col-span-2 p-3 bg-slate-50 border border-slate-200 rounded-lg">
@@ -201,6 +212,10 @@ const RegisterEvidence = () => {
               setDescription("");
               setCollectionTimestamp(new Date().toISOString().substring(0, 16));
               setLocation("");
+              setAcquisitionSource("");
+              setAcquisitionMethod("");
+              setCollectorIdentity("");
+              setDeviceInfo("");
             }}
             className="px-6 py-2.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-semibold rounded-lg text-sm transition-all shadow-xs"
           >
@@ -217,12 +232,13 @@ const RegisterEvidence = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-slate-900">Register Digital Evidence</h1>
-        <p className="text-xs text-slate-500">Seal forensic digital payloads with an immutable blockchain timestamp and IPFS storage.</p>
+        <h1 className="text-xl font-bold text-slate-900">Register Digital Forensic Evidence</h1>
+        <p className="text-xs text-slate-500">
+          Capture chain of custody acquisition parameters and seal digital assets with an on-chain witness.
+        </p>
       </div>
 
       {loading ? (
-        // Pipeline UI Loader
         <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-xs space-y-8">
           <div className="text-center">
             <h3 className="text-sm font-bold uppercase tracking-wider text-blue-700">Executing Cryptographic Registration Pipeline</h3>
@@ -262,7 +278,6 @@ const RegisterEvidence = () => {
           </div>
         </div>
       ) : (
-        // Input Form
         <div className="bg-white border border-slate-200 rounded-2xl p-6 md:p-8 shadow-xs">
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs flex items-center gap-2">
@@ -304,15 +319,14 @@ const RegisterEvidence = () => {
               </div>
             </div>
 
-            {/* Metadata Fields */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
+            {/* General Case & Title Fields */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Target Case Dossier *</label>
                 <select
                   value={caseId}
                   onChange={(e) => setCaseId(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white rounded-lg px-4 py-2.5 text-xs text-slate-900 focus:outline-none"
+                  className="w-full bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white rounded-lg px-3 py-2.5 text-xs text-slate-900 focus:outline-none"
                   required
                 >
                   <option value="">-- Select Case File --</option>
@@ -331,70 +345,141 @@ const RegisterEvidence = () => {
                   value={evidenceName}
                   onChange={(e) => setEvidenceName(e.target.value)}
                   placeholder="e.g., cctv_surveillance_vault.mp4"
-                  className="w-full bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white rounded-lg px-4 py-2.5 text-xs text-slate-900 focus:outline-none"
+                  className="w-full bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white rounded-lg px-3 py-2.5 text-xs text-slate-900 focus:outline-none"
                   required
                 />
               </div>
 
               <div>
-                <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Collection Location / Coordinates</label>
-                <div className="relative">
-                  <MapPin className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
+                <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Evidence Category</label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white rounded-lg px-3 py-2.5 text-xs text-slate-900 focus:outline-none"
+                >
+                  <option value="Surveillance / Audio-Visual">Surveillance / Audio-Visual</option>
+                  <option value="Physical Crime Scene Photo">Physical Crime Scene Photo</option>
+                  <option value="Laboratory Examination Report">Laboratory Examination Report</option>
+                  <option value="Radio Dispatch & Communications">Radio Dispatch & Communications</option>
+                  <option value="Digital Forensics Bit-Stream Disk Image">Bit-Stream Disk Image (E01/RAW)</option>
+                  <option value="Mobile Extraction Report">Mobile Device Extraction</option>
+                  <option value="Network Packet Capture">Network Packet Capture (PCAP)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Forensic Acquisition Metadata Section */}
+            <div className="p-4 bg-slate-50/80 border border-slate-200 rounded-xl space-y-4">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2 border-b border-slate-200 pb-2">
+                <HardDrive className="w-4 h-4 text-blue-600" />
+                Forensic Acquisition & Seizure Context (ISO/IEC 27037 Standard)
+              </h4>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Acquisition Source</label>
                   <input
                     type="text"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    placeholder="e.g. Central Vault - Node 04 corridor"
-                    className="w-full bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white rounded-lg pl-10 pr-4 py-2.5 text-xs text-slate-900 focus:outline-none"
+                    value={acquisitionSource}
+                    onChange={(e) => setAcquisitionSource(e.target.value)}
+                    placeholder="e.g. Hikvision NVR Unit 04 / Suspect Phone NVMe"
+                    className="w-full bg-white border border-slate-300 focus:border-blue-600 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none"
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Collection Timestamp (UTC)</label>
-                <div className="relative font-mono">
-                  <Calendar className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
+                <div>
+                  <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Acquisition Method</label>
                   <input
-                    type="datetime-local"
-                    value={collectionTimestamp}
-                    onChange={(e) => setCollectionTimestamp(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white rounded-lg pl-10 pr-4 py-2.5 text-xs text-slate-900 focus:outline-none"
+                    type="text"
+                    value={acquisitionMethod}
+                    onChange={(e) => setAcquisitionMethod(e.target.value)}
+                    placeholder="e.g. Bit-Stream Image via Tableau T8u Write-Blocker"
+                    className="w-full bg-white border border-slate-300 focus:border-blue-600 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none"
                   />
                 </div>
-              </div>
 
-              <div className="md:col-span-2">
-                <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Forensic Description & Recovery Notes</label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Record recovery methodology, write-blocker hardware serial numbers, and initial custody context..."
-                  rows={4}
-                  className="w-full bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white rounded-lg px-4 py-2.5 text-xs text-slate-900 focus:outline-none resize-none"
+                <div>
+                  <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Collector Identity / Badge #</label>
+                  <input
+                    type="text"
+                    value={collectorIdentity}
+                    onChange={(e) => setCollectorIdentity(e.target.value)}
+                    placeholder="e.g. Det. Alice Vance (Badge #PS-8841)"
+                    className="w-full bg-white border border-slate-300 focus:border-blue-600 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Hardware / Device Specifications</label>
+                  <input
+                    type="text"
+                    value={deviceInfo}
+                    onChange={(e) => setDeviceInfo(e.target.value)}
+                    placeholder="e.g. Seagate SkyHawk 4TB S/N: WAA88910"
+                    className="w-full bg-white border border-slate-300 focus:border-blue-600 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Collection Location / Coordinates</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3.5 top-2.5 w-4 h-4 text-slate-400" />
+                    <input
+                      type="text"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      placeholder="e.g. Central Vault - Camera #02"
+                      className="w-full bg-white border border-slate-300 focus:border-blue-600 rounded-lg pl-10 pr-3 py-2 text-xs text-slate-900 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Collection Date & Time (UTC)</label>
+                  <div className="relative font-mono">
+                    <Calendar className="absolute left-3.5 top-2.5 w-4 h-4 text-slate-400" />
+                    <input
+                      type="datetime-local"
+                      value={collectionTimestamp}
+                      onChange={(e) => setCollectionTimestamp(e.target.value)}
+                      className="w-full bg-white border border-slate-300 focus:border-blue-600 rounded-lg pl-10 pr-3 py-2 text-xs text-slate-900 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Forensic Description & Technical Notes</label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Record seizure circumstances, write-blocker serial numbers, and initial condition..."
+                rows={3}
+                className="w-full bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white rounded-lg p-3 text-xs text-slate-900 focus:outline-none resize-none"
+              />
+            </div>
+
+            {/* Optional Perceptual Hashing Checkbox */}
+            {file && file.type?.startsWith("image/") && (
+              <div className="p-4 bg-purple-50/60 border border-purple-200 rounded-xl flex items-center justify-between">
+                <div className="pr-4">
+                  <h4 className="text-xs font-bold text-purple-800 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-purple-600" />
+                    Visual Perceptual Fingerprint (pHash)
+                  </h4>
+                  <p className="text-[11px] text-purple-700/80 mt-0.5">
+                    Compute invariant discrete cosine transform fingerprint to detect crops, watermark alterations, or re-compression.
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={enablePHash}
+                  onChange={(e) => setEnablePHash(e.target.checked)}
+                  className="w-4 h-4 accent-purple-600 cursor-pointer"
                 />
               </div>
-
-              {/* Optional Perceptual Hashing Checkbox */}
-              {file && file.type?.startsWith("image/") && (
-                <div className="md:col-span-2 p-4 bg-purple-50/60 border border-purple-200 rounded-xl flex items-center justify-between">
-                  <div className="pr-4">
-                    <h4 className="text-xs font-bold text-purple-800 flex items-center gap-1.5">
-                      <Sparkles className="w-4 h-4 text-purple-600" />
-                      Visual Perceptual Fingerprint (pHash)
-                    </h4>
-                    <p className="text-[11px] text-purple-700/80 mt-0.5">
-                      Compute invariant discrete cosine transform fingerprint to detect crops, watermark alterations, or re-compression.
-                    </p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={enablePHash}
-                    onChange={(e) => setEnablePHash(e.target.checked)}
-                    className="w-4 h-4 accent-purple-600 cursor-pointer"
-                  />
-                </div>
-              )}
-            </div>
+            )}
 
             <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
               <Link

@@ -18,7 +18,11 @@ import {
   Video,
   Music,
   ArrowRight,
-  Info
+  Info,
+  Printer,
+  X,
+  FileCheck2,
+  Download
 } from "lucide-react";
 
 const VerifyEvidence = () => {
@@ -34,6 +38,11 @@ const VerifyEvidence = () => {
   const [verifying, setVerifying] = useState(false);
   const [report, setReport] = useState(null);
   const [error, setError] = useState("");
+
+  // Verification certificate modal
+  const [certModalOpen, setCertModalOpen] = useState(false);
+  const [certData, setCertData] = useState(null);
+  const [certLoading, setCertLoading] = useState(false);
 
   useEffect(() => {
     const fetchEvidence = async () => {
@@ -88,22 +97,49 @@ const VerifyEvidence = () => {
     }
   };
 
+  const handleGenerateCertificate = async () => {
+    if (!evidenceId) return;
+    setCertLoading(true);
+    try {
+      const res = await axios.get(`/api/reports/verification/${evidenceId}`);
+      setCertData(res.data);
+      setCertModalOpen(true);
+    } catch (err) {
+      alert("Failed to load verification certificate: " + (err.response?.data?.error || err.message));
+    } finally {
+      setCertLoading(false);
+    }
+  };
+
   const selectedEvidenceMeta = evidenceList.find(e => e.id === evidenceId);
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       
       {/* Header */}
-      <div className="border-b border-slate-200 pb-5">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
-            Cryptographic Integrity Comparator
-          </span>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 pb-5">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+              ISO/IEC 27037 & FRE 902(13)/(14) Hash Verification
+            </span>
+          </div>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Independent Evidence Verification</h2>
+          <p className="text-xs text-slate-500 mt-1 max-w-3xl">
+            Upload any suspect digital exhibit to recalculate its SHA-256 cryptographic fingerprint and compare it in real time against the immutable Ethereum blockchain registry.
+          </p>
         </div>
-        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Independent Evidence Verification</h2>
-        <p className="text-xs text-slate-500 mt-1 max-w-3xl">
-          Upload any suspect digital exhibit to recalculate its SHA-256 cryptographic fingerprint and compare it in real time against the immutable Ethereum blockchain registry.
-        </p>
+
+        {evidenceId && (
+          <button
+            onClick={handleGenerateCertificate}
+            disabled={certLoading}
+            className="px-3.5 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-lg shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+          >
+            <FileCheck2 className="w-4 h-4 text-emerald-600" />
+            Integrity Certificate
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -146,6 +182,7 @@ const VerifyEvidence = () => {
               {selectedEvidenceMeta && (
                 <div className="mt-2 p-2.5 bg-slate-50 rounded border border-slate-200 text-[11px] text-slate-600 space-y-1 font-mono">
                   <div>FORMAT: <span className="text-slate-900 font-semibold">{selectedEvidenceMeta.fileType}</span></div>
+                  <div>REGISTERED SIZE: <span className="text-slate-900 font-semibold">{(selectedEvidenceMeta.fileSize / (1024 * 1024)).toFixed(2)} MB</span></div>
                   <div className="truncate" title={selectedEvidenceMeta.fileHash}>
                     ON-CHAIN HASH: <span className="text-slate-900 font-semibold">{selectedEvidenceMeta.fileHash.substring(0, 16)}...</span>
                   </div>
@@ -188,11 +225,11 @@ const VerifyEvidence = () => {
                 Demo Files Available to Test
               </span>
               <p className="text-[11px] leading-relaxed text-blue-800">
-                To test integrity verification or trigger tamper alerts, browse files located at:
+                To test integrity verification or trigger tamper alerts, browse files located in <code className="bg-white px-1 py-0.5 rounded">backend/uploads/demo_files/</code>:
               </p>
               <div className="font-mono text-[10px] bg-white p-2 rounded border border-blue-200 text-slate-700 space-y-1">
-                <div>&bull; <span className="font-semibold text-emerald-700">Original:</span> evidence_cctv.mp4 / forensic_report.pdf / dispatch_call.wav</div>
-                <div>&bull; <span className="font-semibold text-red-700">Tampered:</span> evidence_cctv_tampered.mp4 / forensic_report_tampered.pdf / dispatch_call_tampered.wav</div>
+                <div>&bull; <span className="font-semibold text-emerald-700">Original:</span> evidence_cctv.mp4 / crime_scene_photo.jpg / dispatch_call.wav</div>
+                <div>&bull; <span className="font-semibold text-red-700">Tampered:</span> evidence_cctv_tampered.mp4 / crime_scene_photo_tampered.jpg / server_audit.log</div>
               </div>
             </div>
 
@@ -242,14 +279,14 @@ const VerifyEvidence = () => {
                   </div>
                   <div>
                     <span className="text-[11px] font-bold uppercase text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded">
-                      JUDICIAL CERTIFICATE: INTEGRITY VERIFIED
+                      INTEGRITY VERIFIED — HASH MATCH
                     </span>
                     <h3 className="text-base font-bold text-emerald-950 mt-1">
                       Evidence Cryptographic Integrity Confirmed
                     </h3>
                     <p className="text-xs text-emerald-800 mt-1 leading-relaxed">
-                      The calculated SHA-256 fingerprint matches the original on-chain registration on Ethereum block state byte-for-byte. 
-                      <strong> Zero alteration detected. Evidence satisfies FRE Rule 902(13) authentication requirements.</strong>
+                      Byte-level mathematical corroboration relative to registered digest. The calculated SHA-256 digest matches the on-chain Solidity registration byte-for-byte. 
+                      <strong className="block mt-1">Satisfies Bharatiya Sakshya Adhiniyam (BSA 2023) Sections 61-63 and FRE 902(13)/(14) electronic record admissibility requirements.</strong>
                     </p>
                   </div>
                 </div>
@@ -260,14 +297,14 @@ const VerifyEvidence = () => {
                   </div>
                   <div>
                     <span className="text-[11px] font-bold uppercase text-red-800 bg-red-100 border border-red-300 px-2 py-0.5 rounded">
-                      CRITICAL ALERT: TAMPER DETECTED
+                      CRITICAL ALERT: CRYPTOGRAPHIC MISMATCH DETECTED
                     </span>
                     <h3 className="text-base font-bold text-red-950 mt-1">
-                      Cryptographic Fingerprint Mismatch!
+                      Evidence Hash Does Not Match Blockchain Registry!
                     </h3>
                     <p className="text-xs text-red-800 mt-1 leading-relaxed">
                       The submitted exhibit does NOT match the original fingerprint sealed on the Ethereum blockchain. 
-                      <strong> The file has been edited, truncated, re-encoded, or replaced after collection.</strong>
+                      <strong> The file has been modified, re-encoded, truncated, or substituted post-seizure.</strong>
                     </p>
                   </div>
                 </div>
@@ -301,6 +338,20 @@ const VerifyEvidence = () => {
                     </span>
                   </div>
 
+                  {/* Comparative Metadata Breakdown */}
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg grid grid-cols-2 gap-3 text-[11px] font-mono text-slate-700">
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase font-sans block">File Size Comparison:</span>
+                      <div>Registered: {selectedEvidenceMeta ? `${(selectedEvidenceMeta.fileSize / 1024).toFixed(1)} KB` : "N/A"}</div>
+                      <div>Submitted: {file ? `${(file.size / 1024).toFixed(1)} KB` : "N/A"}</div>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase font-sans block">MIME Type Match:</span>
+                      <div>Target: {selectedEvidenceMeta?.fileType || "unknown"}</div>
+                      <div>Uploaded: {file?.type || "unknown"}</div>
+                    </div>
+                  </div>
+
                   {/* Visual Similarity Percentage if available */}
                   {report.pHashSimilarity !== null && (
                     <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg flex items-center justify-between">
@@ -328,13 +379,22 @@ const VerifyEvidence = () => {
                     Audit Ref ID: {report.verificationId || "VERIFIED-LOG"}
                   </p>
                 </div>
-                <Link
-                  to={`/custody?evidenceId=${report.evidenceId}`}
-                  className="px-3.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 font-semibold text-xs rounded-lg transition-all flex items-center gap-1.5 shadow-2xs"
-                >
-                  <History className="w-4 h-4" />
-                  View Custody Timeline &rarr;
-                </Link>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleGenerateCertificate}
+                    className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold text-xs rounded-lg transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                  >
+                    <FileCheck2 className="w-4 h-4" />
+                    Formal Certificate
+                  </button>
+                  <Link
+                    to={`/custody?evidenceId=${report.evidenceId}`}
+                    className="px-3.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 font-semibold text-xs rounded-lg transition-all flex items-center gap-1.5 shadow-2xs"
+                  >
+                    <History className="w-4 h-4" />
+                    View Custody &rarr;
+                  </Link>
+                </div>
               </div>
 
               {/* Boundary Notice */}
@@ -353,6 +413,110 @@ const VerifyEvidence = () => {
         </div>
 
       </div>
+
+      {/* Verification Certificate Modal */}
+      {certModalOpen && certData && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-3xl w-full p-8 shadow-2xl border border-slate-200 space-y-6 my-8">
+            <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4">
+              <div>
+                <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-700 font-bold block mb-1">
+                  JUDICIAL EVIDENCE INTEGRITY CERTIFICATE
+                </span>
+                <h2 className="text-xl font-black text-slate-900 tracking-tight">
+                  CERTIFICATE OF ELECTRONIC RECORD AUTHENTICATION
+                </h2>
+                <span className="text-xs font-mono text-slate-500">
+                  DOC REF: {certData.certificateNumber}
+                </span>
+              </div>
+              <button
+                onClick={() => setCertModalOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs font-mono">
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                <div className="grid grid-cols-2 gap-2 text-slate-800">
+                  <div><strong>Evidence Name:</strong> {certData.evidenceName}</div>
+                  <div><strong>Case File:</strong> {certData.caseNumber}</div>
+                  <div className="col-span-2">
+                    <strong>Immutable Digest (SHA-256):</strong> <span className="text-blue-700 break-all">{certData.registeredSha256}</span>
+                  </div>
+                  <div className="col-span-2 truncate">
+                    <strong>Ethereum Tx Receipt:</strong> {certData.blockchainTxId}
+                  </div>
+                  <div><strong>Retention Status:</strong> {certData.retentionStatus}</div>
+                  <div><strong>Total Prior Audits:</strong> {certData.totalAuditsExecuted}</div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-2 text-emerald-950 font-sans">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 block">
+                  Statutory Admissibility Foundations
+                </span>
+                <div className="text-[11px] space-y-1.5 leading-relaxed">
+                  <div><strong>Bharatiya Sakshya Adhiniyam, 2023 (BSA Sec 61-63):</strong> {certData.statutoryStandards?.bharatiyaSakshyaAdhiniyam2023}</div>
+                  <div><strong>Federal Rules of Evidence (FRE 902(13)/(14)):</strong> {certData.statutoryStandards?.federalRulesOfEvidence}</div>
+                </div>
+              </div>
+
+              {certData.verificationHistory && certData.verificationHistory.length > 0 && (
+                <div>
+                  <span className="text-[10px] font-bold uppercase text-slate-500 font-sans block mb-2">
+                    Historical Audit Runs ({certData.verificationHistory.length})
+                  </span>
+                  <div className="border border-slate-200 rounded-lg overflow-hidden max-h-40 overflow-y-auto">
+                    <table className="w-full text-left border-collapse text-[11px]">
+                      <thead className="bg-slate-100 border-b border-slate-200 text-[9px] uppercase font-bold">
+                        <tr>
+                          <th className="p-2">Timestamp</th>
+                          <th className="p-2">Examiner</th>
+                          <th className="p-2">Calculated Hash</th>
+                          <th className="p-2">Result</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {certData.verificationHistory.map((v, i) => (
+                          <tr key={v.id || i}>
+                            <td className="p-2">{new Date(v.timestamp).toLocaleString()}</td>
+                            <td className="p-2">{v.verifier?.name || "System"}</td>
+                            <td className="p-2 font-mono truncate max-w-[150px]">{v.calculatedHash}</td>
+                            <td className="p-2">
+                              {v.isMatch ? (
+                                <span className="text-emerald-700 font-bold">MATCH</span>
+                              ) : (
+                                <span className="text-red-700 font-bold">MISMATCH</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-between items-center pt-4 border-t border-slate-200">
+              <span className="text-[11px] text-slate-500 font-mono">
+                Certified By: ProofShield Automated Witness Engine
+              </span>
+              <button
+                onClick={() => window.print()}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <Printer className="w-4 h-4" />
+                Print Certificate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

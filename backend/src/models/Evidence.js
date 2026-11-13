@@ -15,6 +15,10 @@ const Evidence = sequelize.define("Evidence", {
     type: DataTypes.STRING,
     allowNull: false,
   },
+  category: {
+    type: DataTypes.STRING,
+    defaultValue: "Surveillance / Audio-Visual", // Surveillance, Disk Image, Network Capture, Mobile Extraction, Document, Memory Dump
+  },
   fileType: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -49,12 +53,13 @@ const Evidence = sequelize.define("Evidence", {
   },
   status: {
     type: DataTypes.STRING,
-    defaultValue: "PROCESSING", // PROCESSING, REGISTERED, REGISTRATION_FAILED
+    defaultValue: "REGISTERED", // PROCESSING, REGISTERED, REGISTRATION_FAILED
   },
   description: {
     type: DataTypes.TEXT,
     allowNull: true,
   },
+  // Forensic Acquisition Metadata
   collectionTimestamp: {
     type: DataTypes.DATE,
     allowNull: true,
@@ -63,8 +68,42 @@ const Evidence = sequelize.define("Evidence", {
     type: DataTypes.STRING,
     allowNull: true,
   },
+  acquisitionSource: {
+    type: DataTypes.STRING,
+    allowNull: true, // e.g. "CCTV NVR Server #2", "Suspect Laptop NVMe SSD"
+  },
+  acquisitionMethod: {
+    type: DataTypes.STRING,
+    allowNull: true, // e.g. "Physical Bit-Stream Image via Tableau T8u Write-Blocker", "Direct API Export"
+  },
+  collectorIdentity: {
+    type: DataTypes.STRING,
+    allowNull: true, // Official Badge # or Collector Name
+  },
+  deviceInfo: {
+    type: DataTypes.STRING,
+    allowNull: true, // Hardware serial, model, OS version
+  },
+  // Legal Hold & Retention Management
+  retentionStatus: {
+    type: DataTypes.ENUM("Active", "Under Legal Hold", "Retention Expired", "Pending Review", "Eligible for Authorized Disposal"),
+    defaultValue: "Active",
+  },
+  legalHoldReason: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+  legalHoldAppliedBy: {
+    type: DataTypes.UUID,
+    allowNull: true,
+  },
+  legalHoldAppliedAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
 }, {
   tableName: "evidence",
+  timestamps: true,
 });
 
 module.exports = Evidence;

@@ -11,6 +11,9 @@ const evidenceRoutes = require("./routes/evidence.routes");
 const custodyRoutes = require("./routes/custody.routes");
 const verifyRoutes = require("./routes/verify.routes");
 const adminRoutes = require("./routes/admin.routes");
+const auditRoutes = require("./routes/audit.routes");
+const reportsRoutes = require("./routes/reports.routes");
+const notificationsRoutes = require("./routes/notifications.routes");
 
 require("dotenv").config({ path: path.join(__dirname, "../../.env") });
 
@@ -51,6 +54,9 @@ app.use("/api/evidence", evidenceRoutes); // General evidence routes
 app.use("/api/evidence", custodyRoutes);    // Custody events mounted under /api/evidence
 app.use("/api", verifyRoutes);             // Verify endpoints mounted directly under /api (/api/verify, /api/evidence/:id/verifications)
 app.use("/api/admin", adminRoutes);
+app.use("/api/audit-logs", auditRoutes);
+app.use("/api/reports", reportsRoutes);
+app.use("/api/notifications", notificationsRoutes);
 
 // Health check endpoint
 app.get("/health", (req, res) => {
