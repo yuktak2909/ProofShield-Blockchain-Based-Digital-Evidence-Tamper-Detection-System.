@@ -9,7 +9,7 @@ router.use(protect);
 router.get("/stats", adminController.getSystemStats);
 
 // System diagnostics and health
-router.get("/health", restrictTo("admin", "court"), adminController.getSystemHealth);
+router.get("/health", restrictTo("admin", "investigator", "analyst", "court"), adminController.getSystemHealth);
 
 // User administration routes
 router.use(restrictTo("admin"));

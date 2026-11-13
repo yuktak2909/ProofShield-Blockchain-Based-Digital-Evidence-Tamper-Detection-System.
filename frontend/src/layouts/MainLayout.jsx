@@ -81,8 +81,8 @@ const MainLayout = () => {
     { name: "Verify & Tamper Audit", path: "/verify", icon: SearchCode, roles: ["admin", "investigator", "analyst", "court"] },
     { name: "Chain of Custody", path: "/custody", icon: History, roles: ["admin", "investigator", "analyst", "court"] },
     { name: "Blockchain Ledger", path: "/blockchain-records", icon: Cpu, roles: ["admin", "investigator", "analyst", "court"] },
-    { name: "Audit Ledger", path: "/audit-logs", icon: FileText, roles: ["admin", "court"] },
-    { name: "System Diagnostics", path: "/system-health", icon: Activity, roles: ["admin", "court"] },
+    { name: "Audit Ledger", path: "/audit-logs", icon: FileText, roles: ["admin", "investigator", "analyst", "court"] },
+    { name: "System Diagnostics", path: "/system-health", icon: Activity, roles: ["admin", "investigator", "analyst", "court"] },
     { name: "User Clearances", path: "/users", icon: Users, roles: ["admin"] }
   ];
 
