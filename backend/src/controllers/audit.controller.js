@@ -44,3 +44,4 @@ exports.getAuditLogs = async (req, res) => {
     return res.status(500).json({ error: "Failed to retrieve system audit logs." });
   }
 };
+

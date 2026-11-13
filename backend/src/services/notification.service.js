@@ -30,3 +30,4 @@ async function createNotification({
 module.exports = {
   createNotification
 };
+

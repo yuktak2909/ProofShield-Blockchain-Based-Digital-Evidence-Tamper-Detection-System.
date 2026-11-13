@@ -9,3 +9,4 @@ router.use(restrictTo("admin", "court"));
 router.get("/", auditController.getAuditLogs);
 
 module.exports = router;
+

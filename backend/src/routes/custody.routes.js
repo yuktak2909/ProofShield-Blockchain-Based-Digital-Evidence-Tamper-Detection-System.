@@ -11,6 +11,8 @@ router.post("/:id/transfer", restrictTo("admin", "investigator", "analyst"), cus
 router.post("/:id/transfer/initiate", restrictTo("admin", "investigator", "analyst"), custodyController.initiateTransfer);
 router.post("/:id/transfer/accept", restrictTo("admin", "investigator", "analyst", "court"), custodyController.acceptTransfer);
 router.post("/:id/transfer/reject", restrictTo("admin", "investigator", "analyst", "court"), custodyController.rejectTransfer);
+router.post("/accept/:id", restrictTo("admin", "investigator", "analyst", "court"), custodyController.acceptTransfer);
+router.post("/reject/:id", restrictTo("admin", "investigator", "analyst", "court"), custodyController.rejectTransfer);
 router.post("/:id/transfer/cancel", restrictTo("admin", "investigator", "analyst"), custodyController.cancelTransfer);
 router.get("/:id/custody", custodyController.getCustodyHistory);
 

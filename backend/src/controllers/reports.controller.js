@@ -182,3 +182,4 @@ exports.getCaseReport = async (req, res) => {
     return res.status(500).json({ error: "Failed to generate case summary report: " + error.message });
   }
 };
+

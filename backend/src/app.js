@@ -33,10 +33,16 @@ app.use(express.urlencoded({ extended: true }));
 // Serve static public folder if needed
 app.use("/public", express.static(path.join(__dirname, "../public")));
 
-// Check DB Connection
+// Check DB Connection & sync schema
 sequelize.authenticate()
-  .then(() => {
+  .then(async () => {
     console.log("Database connected successfully to PostgreSQL.");
+    try {
+      await sequelize.sync();
+      console.log("Database schema models verified.");
+    } catch (sErr) {
+      console.warn("Schema sync note:", sErr.message);
+    }
   })
   .catch((err) => {
     console.error("CRITICAL ERROR: Unable to connect to the database:", err.message);
@@ -52,6 +58,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/cases", casesRoutes);
 app.use("/api/evidence", evidenceRoutes); // General evidence routes
 app.use("/api/evidence", custodyRoutes);    // Custody events mounted under /api/evidence
+app.use("/api/custody", custodyRoutes);     // Custody transfer & acceptance routes
 app.use("/api", verifyRoutes);             // Verify endpoints mounted directly under /api (/api/verify, /api/evidence/:id/verifications)
 app.use("/api/admin", adminRoutes);
 app.use("/api/audit-logs", auditRoutes);

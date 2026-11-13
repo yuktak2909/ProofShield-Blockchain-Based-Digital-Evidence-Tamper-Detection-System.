@@ -180,21 +180,29 @@ exports.initiateTransfer = async (req, res) => {
 exports.acceptTransfer = async (req, res) => {
   try {
     const { id } = req.params;
-    const { logId, acceptanceNotes } = req.body;
+    const { logId, acceptanceNotes, conditionNotes } = req.body;
 
-    const evidence = await Evidence.findByPk(id);
+    let evidence = await Evidence.findByPk(id);
+    let pendingLog = null;
+
+    if (evidence) {
+      pendingLog = await CustodyLog.findOne({
+        where: {
+          evidenceId: id,
+          ...(logId ? { id: logId } : {}),
+          transferState: "Pending"
+        }
+      });
+    } else {
+      pendingLog = await CustodyLog.findByPk(id);
+      if (pendingLog) {
+        evidence = await Evidence.findByPk(pendingLog.evidenceId);
+      }
+    }
+
     if (!evidence) {
       return res.status(404).json({ error: "Evidence not found." });
     }
-
-    // Find the pending transfer record
-    const pendingLog = await CustodyLog.findOne({
-      where: {
-        evidenceId: id,
-        ...(logId ? { id: logId } : {}),
-        transferState: "Pending"
-      }
-    });
 
     if (!pendingLog) {
       return res.status(404).json({ error: "No pending custody transfer found for this evidence." });
@@ -294,7 +302,7 @@ exports.rejectTransfer = async (req, res) => {
       return res.status(400).json({ error: "Rejection justification reason is mandatory." });
     }
 
-    const pendingLog = await CustodyLog.findOne({
+    let pendingLog = await CustodyLog.findOne({
       where: {
         evidenceId: id,
         ...(logId ? { id: logId } : {}),
@@ -303,6 +311,10 @@ exports.rejectTransfer = async (req, res) => {
     });
 
     if (!pendingLog) {
+      pendingLog = await CustodyLog.findByPk(id);
+    }
+
+    if (!pendingLog || pendingLog.transferState !== "Pending") {
       return res.status(404).json({ error: "No pending custody transfer found to reject." });
     }
 

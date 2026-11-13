@@ -56,3 +56,4 @@ exports.markAllAsRead = async (req, res) => {
     return res.status(500).json({ error: "Failed to mark all as read." });
   }
 };
+

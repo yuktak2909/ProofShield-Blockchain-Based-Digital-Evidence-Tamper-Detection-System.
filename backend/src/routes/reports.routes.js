@@ -10,3 +10,4 @@ router.get("/verification/:evidenceId", reportsController.getVerificationCertifi
 router.get("/case/:caseId", reportsController.getCaseReport);
 
 module.exports = router;
+
