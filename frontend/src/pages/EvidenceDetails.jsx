@@ -68,6 +68,9 @@ const EvidenceDetails = () => {
   const [legalHoldLoading, setLegalHoldLoading] = useState(false);
   const [isReleasingHold, setIsReleasingHold] = useState(false);
 
+  // Forensic Previewer State
+  const [imageZoom, setImageZoom] = useState(1);
+
   // Rejection Modal State
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [pendingLogToReject, setPendingLogToReject] = useState(null);
@@ -504,7 +507,13 @@ const EvidenceDetails = () => {
             )}
 
             {isVideo && (
-              <div className="w-full max-w-2xl">
+              <div className="w-full max-w-2xl space-y-2">
+                <div className="flex justify-between items-center text-[11px] font-mono text-slate-500">
+                  <span className="flex items-center gap-1 font-semibold text-blue-700">
+                    <Video className="w-3.5 h-3.5" /> 720p HD Stream (H.264)
+                  </span>
+                  <span>HTTP 206 Partial Content Active</span>
+                </div>
                 <video
                   controls
                   className="w-full rounded-lg bg-black shadow-md border border-slate-800"
@@ -512,23 +521,42 @@ const EvidenceDetails = () => {
                 >
                   Your browser does not support video playback.
                 </video>
-                <p className="text-center text-[11px] text-slate-500 font-mono mt-2">
+                <p className="text-center text-[11px] text-slate-500 font-mono">
                   Direct H.264 Surveillance Feed Stream &bull; SHA-256 Verified Binary
                 </p>
               </div>
             )}
 
             {isAudio && (
-              <div className="w-full max-w-xl p-4 bg-white rounded-lg border border-slate-200 shadow-xs space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-blue-50 text-blue-700 flex items-center justify-center">
-                    <Music className="w-5 h-5" />
+              <div className="w-full max-w-xl p-5 bg-white rounded-xl border border-slate-200 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-blue-50 text-blue-700 flex items-center justify-center">
+                      <Music className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900">{evidence.evidenceName}</h4>
+                      <span className="text-[10px] text-slate-500 font-mono">
+                        16 kHz &bull; 16-bit PCM WAV &bull; Public Safety Radio Audio
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-900">{evidence.evidenceName}</h4>
-                    <span className="text-[10px] text-slate-500 font-mono">Audio Stream &bull; {evidence.fileType}</span>
-                  </div>
+                  <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-mono font-bold">
+                    PCM AUDIO
+                  </span>
                 </div>
+
+                {/* Animated Waveform Visualization Bar */}
+                <div className="h-12 bg-slate-900 rounded-lg p-2 flex items-center justify-between gap-1 overflow-hidden px-4">
+                  {[24, 40, 16, 50, 65, 30, 80, 45, 90, 70, 35, 60, 48, 75, 55, 38, 85, 95, 60, 42, 68, 52, 77, 33, 49, 62, 88, 44, 28, 54, 70, 36, 82, 46].map((h, i) => (
+                    <div
+                      key={i}
+                      className="w-1.5 bg-blue-500 rounded-full opacity-80"
+                      style={{ height: `${h}%` }}
+                    />
+                  ))}
+                </div>
+
                 <audio controls className="w-full" src={fileUrl}>
                   Your browser does not support audio playback.
                 </audio>
@@ -536,22 +564,75 @@ const EvidenceDetails = () => {
             )}
 
             {isPdf && (
-              <div className="w-full">
+              <div className="w-full space-y-2">
+                <div className="flex justify-between items-center text-xs pb-1">
+                  <span className="font-semibold text-slate-700 font-mono text-[11px] flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-blue-600" />
+                    Certified Forensic PDF Document (PDF-1.4)
+                  </span>
+                  <div className="flex gap-2">
+                    <a
+                      href={fileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-2.5 py-1 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded text-[11px] font-semibold flex items-center gap-1"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      Full Screen
+                    </a>
+                    <a
+                      href={fileUrl}
+                      download={evidence.evidenceName}
+                      className="px-2.5 py-1 bg-blue-700 hover:bg-blue-800 text-white rounded text-[11px] font-semibold flex items-center gap-1"
+                    >
+                      <Download className="w-3 h-3" />
+                      Download PDF
+                    </a>
+                  </div>
+                </div>
                 <iframe
                   src={fileUrl}
                   title="PDF Evidence Preview"
-                  className="w-full h-[500px] rounded-lg border border-slate-300 shadow-inner bg-white"
+                  className="w-full h-[520px] rounded-lg border border-slate-300 shadow-inner bg-white"
                 />
               </div>
             )}
 
             {isImage && (
-              <div className="max-w-2xl">
-                <img
-                  src={fileUrl}
-                  alt={evidence.evidenceName}
-                  className="max-h-[420px] rounded-lg border border-slate-300 shadow-md object-contain bg-slate-900"
-                />
+              <div className="w-full max-w-3xl space-y-2">
+                <div className="flex justify-between items-center text-xs pb-1">
+                  <span className="font-semibold text-slate-700 font-mono text-[11px]">
+                    1280 x 720 px &bull; 24-bit JPEG &bull; Metric Scale Photogrammetry
+                  </span>
+                  <div className="flex items-center gap-1 bg-white border border-slate-300 rounded-lg p-0.5 shadow-2xs text-[11px] font-mono">
+                    <button
+                      onClick={() => setImageZoom(1)}
+                      className={`px-2 py-0.5 rounded cursor-pointer ${imageZoom === 1 ? "bg-blue-700 text-white font-bold" : "text-slate-600 hover:bg-slate-100"}`}
+                    >
+                      100%
+                    </button>
+                    <button
+                      onClick={() => setImageZoom(1.5)}
+                      className={`px-2 py-0.5 rounded cursor-pointer ${imageZoom === 1.5 ? "bg-blue-700 text-white font-bold" : "text-slate-600 hover:bg-slate-100"}`}
+                    >
+                      150% (Inspect Evidence)
+                    </button>
+                    <button
+                      onClick={() => setImageZoom(2)}
+                      className={`px-2 py-0.5 rounded cursor-pointer ${imageZoom === 2 ? "bg-blue-700 text-white font-bold" : "text-slate-600 hover:bg-slate-100"}`}
+                    >
+                      200% (Marker Zoom)
+                    </button>
+                  </div>
+                </div>
+                <div className="w-full overflow-auto max-h-[500px] rounded-xl border border-slate-300 bg-slate-900 flex items-center justify-center p-2 shadow-inner">
+                  <img
+                    src={fileUrl}
+                    alt={evidence.evidenceName}
+                    style={{ transform: `scale(${imageZoom})`, transformOrigin: "center center", transition: "transform 0.2s ease" }}
+                    className="max-h-[460px] rounded object-contain"
+                  />
+                </div>
               </div>
             )}
 

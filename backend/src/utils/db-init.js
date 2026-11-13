@@ -126,7 +126,7 @@ async function init() {
 
     const evidence2 = await Evidence.create({
       caseId: cases[0].id,
-      evidenceName: "forensic_examination_report.pdf",
+      evidenceName: "forensic_report.pdf",
       category: "Laboratory Examination Report",
       fileType: "application/pdf",
       fileSize: pdfInfo.size,
@@ -152,7 +152,7 @@ async function init() {
 
     const evidence3 = await Evidence.create({
       caseId: cases[0].id,
-      evidenceName: "emergency_dispatch_call.wav",
+      evidenceName: "dispatch_call.wav",
       category: "911 Dispatch Audio Stream",
       fileType: "audio/wav",
       fileSize: audioInfo.size,

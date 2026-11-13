@@ -222,14 +222,16 @@ const VerifyEvidence = () => {
             <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-lg text-xs text-blue-900 space-y-1.5">
               <span className="font-bold flex items-center gap-1 text-[11px] uppercase tracking-wide text-blue-800">
                 <Info className="w-3.5 h-3.5" />
-                Demo Files Available to Test
+                Available Demonstration Exhibits (4 Categories)
               </span>
               <p className="text-[11px] leading-relaxed text-blue-800">
-                To test integrity verification or trigger tamper alerts, browse files located in <code className="bg-white px-1 py-0.5 rounded">backend/uploads/demo_files/</code>:
+                Test integrity verification or trigger tamper alerts from <code className="bg-white px-1 py-0.5 rounded font-mono">backend/uploads/demo_files/</code>:
               </p>
-              <div className="font-mono text-[10px] bg-white p-2 rounded border border-blue-200 text-slate-700 space-y-1">
-                <div>&bull; <span className="font-semibold text-emerald-700">Original:</span> evidence_cctv.mp4 / crime_scene_photo.jpg / dispatch_call.wav</div>
-                <div>&bull; <span className="font-semibold text-red-700">Tampered:</span> evidence_cctv_tampered.mp4 / crime_scene_photo_tampered.jpg / server_audit.log</div>
+              <div className="font-mono text-[10px] bg-white p-2.5 rounded border border-blue-200 text-slate-700 space-y-1">
+                <div>&bull; <strong>1. Video:</strong> <span className="text-emerald-700 font-semibold">evidence_cctv.mp4</span> vs <span className="text-red-700 font-semibold">evidence_cctv_tampered.mp4</span></div>
+                <div>&bull; <strong>2. Photo:</strong> <span className="text-emerald-700 font-semibold">crime_scene_photo.jpg</span> vs <span className="text-red-700 font-semibold">crime_scene_photo_tampered.jpg</span></div>
+                <div>&bull; <strong>3. Audio:</strong> <span className="text-emerald-700 font-semibold">dispatch_call.wav</span> vs <span className="text-red-700 font-semibold">dispatch_call_tampered.wav</span></div>
+                <div>&bull; <strong>4. PDF:</strong> <span className="text-emerald-700 font-semibold">forensic_report.pdf</span> vs <span className="text-red-700 font-semibold">forensic_report_tampered.pdf</span></div>
               </div>
             </div>
 
@@ -288,6 +290,12 @@ const VerifyEvidence = () => {
                       Byte-level mathematical corroboration relative to registered digest. The calculated SHA-256 digest matches the on-chain Solidity registration byte-for-byte. 
                       <strong className="block mt-1">Satisfies Bharatiya Sakshya Adhiniyam (BSA 2023) Sections 61-63 and FRE 902(13)/(14) electronic record admissibility requirements.</strong>
                     </p>
+                    <div className="mt-2 flex items-center gap-2 text-[10px] font-mono">
+                      <span className="text-emerald-900 font-bold uppercase">WITNESS SOURCE:</span>
+                      <span className="bg-white/90 px-2 py-0.5 rounded border border-emerald-300 font-bold text-emerald-800">
+                        {report.witnessSource === "ON_CHAIN_ETHEREUM_SMART_CONTRACT" ? "Ethereum Smart Contract (Block Witness)" : "PostgreSQL Relational Ledger"}
+                      </span>
+                    </div>
                   </div>
                 </div>
               ) : (

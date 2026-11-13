@@ -95,3 +95,4 @@ updateCCTV()
     console.error("FAILED:", err);
     process.exit(1);
   });
+

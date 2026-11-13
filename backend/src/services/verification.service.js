@@ -25,15 +25,17 @@ async function verifyEvidenceFile(evidenceId, filePath, userId) {
     
     // Query blockchain smart contract
     let blockchainResult;
+    let isBlockchainWitnessed = false;
     try {
       blockchainResult = await blockchainService.verifyEvidence(evidenceId, calculatedHash);
+      isBlockchainWitnessed = true;
     } catch (contractErr) {
-      console.warn("Blockchain connection unavailable, comparing against database hash:", contractErr.message);
       const matches = dbEvidence.fileHash === calculatedHash;
       blockchainResult = {
         isVerified: matches,
         registeredHash: dbEvidence.fileHash
       };
+      isBlockchainWitnessed = false;
     }
 
     const { isVerified, registeredHash } = blockchainResult;
@@ -86,6 +88,8 @@ async function verifyEvidenceFile(evidenceId, filePath, userId) {
       registeredFileType: dbEvidence.fileType,
       result: resultStatus,
       isVerified,
+      witnessSource: isBlockchainWitnessed ? "ON_CHAIN_ETHEREUM_SMART_CONTRACT" : "POSTGRESQL_CRYPTOGRAPHIC_REGISTRY",
+      isBlockchainWitnessed,
       timestamp: log.timestamp,
       blockchainTxId: dbEvidence.blockchainTxId,
       ipfsCid: dbEvidence.ipfsCid,
