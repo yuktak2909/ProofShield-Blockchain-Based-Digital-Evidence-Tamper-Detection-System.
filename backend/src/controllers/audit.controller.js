@@ -21,22 +21,48 @@ exports.getAuditLogs = async (req, res) => {
 
     const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
 
-    const { count, rows: logs } = await AuditLog.findAndCountAll({
-      where,
-      include: [
-        { model: User, as: "actor", attributes: ["id", "name", "email", "role"] },
-        { model: Case, as: "case", attributes: ["id", "caseNumber", "title"] },
-        { model: Evidence, as: "evidence", attributes: ["id", "evidenceName", "fileHash"] }
-      ],
-      order: [["timestamp", "DESC"]],
-      limit: parseInt(limit, 10),
-      offset
-    });
+    const [
+      { count, rows: logs },
+      totalEvents,
+      successActions,
+      failedActions,
+      securityAlerts
+    ] = await Promise.all([
+      AuditLog.findAndCountAll({
+        where,
+        include: [
+          { model: User, as: "actor", attributes: ["id", "name", "email", "role"] },
+          { model: Case, as: "case", attributes: ["id", "caseNumber", "title"] },
+          { model: Evidence, as: "evidence", attributes: ["id", "evidenceName", "fileHash"] }
+        ],
+        order: [["timestamp", "DESC"]],
+        limit: parseInt(limit, 10),
+        offset
+      }),
+      AuditLog.count(),
+      AuditLog.count({ where: { status: "SUCCESS" } }),
+      AuditLog.count({ where: { status: "FAILURE" } }),
+      AuditLog.count({ 
+        where: { 
+          [Op.or]: [
+            { status: "WARNING" },
+            { action: { [Op.like]: "%TAMPER%" } },
+            { category: "SECURITY" }
+          ] 
+        } 
+      })
+    ]);
 
     return res.status(200).json({
       total: count,
       page: parseInt(page, 10),
       totalPages: Math.ceil(count / parseInt(limit, 10)),
+      metrics: {
+        totalEvents,
+        successActions,
+        failedActions,
+        securityAlerts
+      },
       logs
     });
   } catch (error) {

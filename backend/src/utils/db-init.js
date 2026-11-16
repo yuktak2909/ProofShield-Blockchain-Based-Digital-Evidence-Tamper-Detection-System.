@@ -3,6 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { sequelize, User, Case, Evidence, CustodyLog, VerificationLog, AuditLog, Notification } = require("../models");
+const blockchainService = require("../services/blockchain.service");
 
 async function init() {
   try {
@@ -49,9 +50,9 @@ async function init() {
     const cases = await Case.bulkCreate([
       {
         caseNumber: "PS-2026-001",
-        title: "Central Bank Vault Intrusion",
-        description: "Investigation of unauthorized access to the safety deposit lockers at Central Bank main vault. Primary evidence includes entrance CCTV footage, dispatch audio, and on-site forensic examination report.",
-        category: "Physical Security Breach & Theft",
+        title: "Residential Burglary Investigation",
+        description: "Investigation of unauthorized nighttime forced entry into a private residence. Two intruders captured on residential perimeter surveillance camera fleeing with stolen valuables. Physical point-of-entry toolmark photos, emergency dispatch communications, and preliminary forensic analysis reports attached. [Demonstration Training Scenario]",
+        category: "Property Crime",
         status: "Under Investigation",
         priority: "Critical",
         createdBy: users[0].id,
@@ -60,10 +61,10 @@ async function init() {
       },
       {
         caseNumber: "PS-2026-002",
-        title: "Titanium Corp Espionage Leak",
-        description: "Leak of intellectual property documents regarding experimental fuel-cell batteries. Suspected internal leak via corporate email attachments.",
-        category: "Corporate Cyber Espionage",
-        status: "Pending Review",
+        title: "Hit-and-Run Road Accident Investigation",
+        description: "Investigation of an urban road traffic collision where a motor vehicle struck a crossing pedestrian at a signaled intersection and left the scene without stopping or rendering aid. Exhibits include municipal roadside traffic camera footage, vehicle debris photography, emergency call recording, and accident reconstruction report. [Public Reference Case: Hartlepool Road Traffic Incident / Demonstration Data]",
+        category: "Road Traffic Offence",
+        status: "Open",
         priority: "High",
         createdBy: users[0].id,
         assignedInvestigatorId: users[0].id,
@@ -71,10 +72,10 @@ async function init() {
       },
       {
         caseNumber: "PS-2026-003",
-        title: "Operation DarkNet Cryptolocker",
-        description: "Ransomware extortion campaign against state utility infrastructure. Memory dumps, network packet captures, and bitcoin ransom notes collected.",
-        category: "Critical Infrastructure Cyber Incident",
-        status: "Open",
+        title: "ATM Skimming and Financial Fraud Investigation",
+        description: "Organized financial fraud investigation involving an illicit card-reader overlay and concealed pinhole camera fitted onto a retail automated teller machine to capture magnetic stripe track data and customer PIN entries. Exhibits include ATM kiosk surveillance, recovered skimming hardware photography, banking audit logs, and digital forensic examination report. [Public Reference Case: Bank ATM Skimming / Demonstration Data]",
+        category: "Cyber / Financial Crime",
+        status: "Pending Review",
         priority: "Critical",
         createdBy: users[3].id,
         assignedInvestigatorId: users[0].id,
@@ -95,45 +96,46 @@ async function init() {
       return { hash, cid: fixedCid, size: buf.length };
     };
 
-    const videoInfo = prepareFile("evidence_cctv.mp4", "QmXvideo001");
-    const pdfInfo = prepareFile("forensic_report.pdf", "QmYpdf002");
-    const audioInfo = prepareFile("dispatch_call.wav", "QmZaudio003");
-    const photoInfo = prepareFile("crime_scene_photo.jpg", "QmWimage004");
+    const videoInfo = prepareFile("original_cctv.mp4", "Qmvrkmy1qr39wx99wBEB42D556NGNNQSGXPHRHYLXYaTTW");
+    const pdfInfo = prepareFile("fingerprint_examination_report.pdf", "Qmwikk13x7856s8A5B38J4DEKEHKCKUQMUHJWTTQccYRfS");
+    const photoInfo = prepareFile("crime_scene_photo.png", "Qmwtkpkvxo1ruB55Ax8y457LEJQ89CTCSNXYZaUXWWXhdd");
 
-    console.log("Seeding initial evidence records with real media files...");
+    console.log("Seeding initial evidence records with genuine media files...");
     const evidence1 = await Evidence.create({
       caseId: cases[0].id,
-      evidenceName: "evidence_cctv.mp4",
-      category: "CCTV Surveillance Feed",
+      evidenceName: "original_cctv.mp4",
+      category: "CCTV / Video",
       fileType: "video/mp4",
       fileSize: videoInfo.size,
       fileHash: videoInfo.hash,
       ipfsCid: videoInfo.cid,
       submittedBy: users[0].id, // Investigator Alice
-      blockchainTxId: "0x7894561230abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      blockchainTxId: null,
+      blockchainStatus: "NOT_ANCHORED",
       submittedAt: new Date(Date.now() - 3600000 * 3),
       currentCustodian: users[1].id, // Transferred to Analyst Bob
       status: "REGISTERED",
       retentionStatus: "Active",
-      description: "Direct surveillance recording of the central vault door at 19:48:00 UTC.",
+      description: "Residential perimeter surveillance footage capturing intruder activity.",
       collectionTimestamp: new Date(Date.now() - 3600000 * 5),
-      location: "Central Vault - Camera #02",
-      acquisitionSource: "Hikvision NVR Server 04 (Internal Security Subnet)",
-      acquisitionMethod: "Direct Bit-Stream Export via USB 3.0 Write-Blocker",
-      collectorIdentity: "Badge #PS-8841 (Det. Alice Vance)",
-      deviceInfo: "Seagate SkyHawk 4TB Surveillance HDD, S/N: WAA88910"
+      location: "Perimeter Driveway - Security Cam #02",
+      acquisitionSource: "Residential Security DVR Server 01",
+      acquisitionMethod: "Direct Bit-Stream Export via Write-Blocker",
+      collectorIdentity: "Det. Alice Vance (Badge #PS-8841)",
+      deviceInfo: "Lorex 4K NVR, S/N: LX-99014-B"
     });
 
     const evidence2 = await Evidence.create({
       caseId: cases[0].id,
-      evidenceName: "forensic_report.pdf",
-      category: "Laboratory Examination Report",
+      evidenceName: "fingerprint_examination_report.pdf",
+      category: "PDF / Documents",
       fileType: "application/pdf",
       fileSize: pdfInfo.size,
       fileHash: pdfInfo.hash,
       ipfsCid: pdfInfo.cid,
       submittedBy: users[0].id,
-      blockchainTxId: "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+      blockchainTxId: null,
+      blockchainStatus: "NOT_ANCHORED",
       submittedAt: new Date(Date.now() - 3600000 * 2),
       currentCustodian: users[0].id,
       status: "REGISTERED",
@@ -141,60 +143,80 @@ async function init() {
       legalHoldReason: "Statutory evidence hold requested by Grand Jury Subpoena #GJ-2026-99",
       legalHoldAppliedBy: users[3].id,
       legalHoldAppliedAt: new Date(Date.now() - 3600000 * 1),
-      description: "Official preliminary crime scene inspection report and hardware write-blocker image verification.",
+      description: "Forensic fingerprint examination documentation and latent ridge comparison report (Exhibit FP-EX-01).",
       collectionTimestamp: new Date(Date.now() - 3600000 * 4),
-      location: "Cyber Forensics Field Unit 04",
-      acquisitionSource: "Digital Forensics Mobile Unit Lab Workstation",
-      acquisitionMethod: "Signed Cryptographic PDF Export",
+      location: "Digital Forensics Mobile Unit Lab",
+      acquisitionSource: "Laboratory Forensic Workstation",
+      acquisitionMethod: "Digitally Signed Cryptographic PDF",
       collectorIdentity: "Forensic Analyst Bob Miller (Cert: EnCE, GCFE)",
       deviceInfo: "Forensic Tower Precision 7920, Windows 11 Forensics OS"
     });
 
     const evidence3 = await Evidence.create({
       caseId: cases[0].id,
-      evidenceName: "dispatch_call.wav",
-      category: "911 Dispatch Audio Stream",
-      fileType: "audio/wav",
-      fileSize: audioInfo.size,
-      fileHash: audioInfo.hash,
-      ipfsCid: audioInfo.cid,
-      submittedBy: users[0].id,
-      blockchainTxId: "0x9988776655abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-      submittedAt: new Date(Date.now() - 3600000 * 1),
-      currentCustodian: users[2].id, // Transferred to Court Official Charles
-      status: "REGISTERED",
-      retentionStatus: "Active",
-      description: "Audio capture of the incoming security dispatch alert notification.",
-      collectionTimestamp: new Date(Date.now() - 3600000 * 6),
-      location: "911 Command Communications Center",
-      acquisitionSource: "NiceLogger Public Safety Audio Archive",
-      acquisitionMethod: "Uncompressed PCM WAV Export",
-      collectorIdentity: "Communications Officer Sarah Jenkins",
-      deviceInfo: "Avaya Enterprise Communications Server"
-    });
-
-    const evidence4 = await Evidence.create({
-      caseId: cases[0].id,
-      evidenceName: "crime_scene_photo.jpg",
-      category: "On-Scene Crime Scene Photography",
-      fileType: "image/jpeg",
+      evidenceName: "crime_scene_photo.png",
+      category: "Photographs",
+      fileType: "image/png",
       fileSize: photoInfo.size,
       fileHash: photoInfo.hash,
       ipfsCid: photoInfo.cid,
       submittedBy: users[0].id,
-      blockchainTxId: "0x5544332211abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      blockchainTxId: null,
+      blockchainStatus: "NOT_ANCHORED",
       submittedAt: new Date(Date.now() - 3600000 * 4),
       currentCustodian: users[0].id,
       status: "REGISTERED",
       retentionStatus: "Active",
-      description: "High resolution forensic scene photograph of physical vault door lock mechanism.",
+      description: "Photograph documenting the residential burglary scene and primary point of forced entry.",
       collectionTimestamp: new Date(Date.now() - 3600000 * 6),
-      location: "Main Chamber Door Outer Panel",
+      location: "Rear Patio Sliding Glass Door",
       acquisitionSource: "Nikon D850 Forensic Camera Kit",
-      acquisitionMethod: "Raw DNG to Baseline JPEG with Certified Forensic Scale",
+      acquisitionMethod: "Raw DNG to Baseline PNG with Certified Forensic Scale",
       collectorIdentity: "Det. Alice Vance",
       deviceInfo: "Camera S/N: 3049182, 50mm f/1.8 Nikkor Lens"
     });
+
+    // Attempt genuine on-chain anchoring if Ethereum node is reachable
+    const safelyAnchorDemoEvidence = async (ev, rawFile, caseNum, submitterWallet) => {
+      const filePath = path.join(demoDir, rawFile);
+      if (!fs.existsSync(filePath)) return;
+      const buf = fs.readFileSync(filePath);
+      const calculated = crypto.createHash("sha256").update(buf).digest("hex");
+      if (calculated.toLowerCase() !== ev.fileHash.toLowerCase()) return;
+
+      try {
+        const onChainCheck = await blockchainService.checkEvidenceOnChainStatus(ev.id);
+        if (onChainCheck.nodeStatus === "OPERATIONAL" && onChainCheck.contractStatus === "OPERATIONAL") {
+          if (onChainCheck.recordStatus === "RECORD_CONFIRMED_ON_CHAIN") {
+            ev.blockchainStatus = "CONFIRMED";
+            if (!ev.blockchainAnchoredAt) ev.blockchainAnchoredAt = new Date();
+            await ev.save();
+            return;
+          }
+
+          console.log(`[ON-CHAIN ANCHOR] Registering ${ev.evidenceName} on Ethereum contract...`);
+          const receipt = await blockchainService.registerEvidence(
+            ev.id,
+            ev.fileHash,
+            caseNum,
+            ev.description || "Demo forensic exhibit",
+            submitterWallet
+          );
+          ev.blockchainTxId = receipt.txHash;
+          ev.blockchainBlockNumber = receipt.blockNumber;
+          ev.blockchainStatus = "CONFIRMED";
+          ev.blockchainAnchoredAt = new Date();
+          await ev.save();
+          console.log(`[ON-CHAIN ANCHOR CONFIRMED] Block ${receipt.blockNumber}, Tx: ${receipt.txHash}`);
+        }
+      } catch (e) {
+        console.log(`[ON-CHAIN ANCHOR STANDBY] ${ev.evidenceName} remains unanchored: ${e.message}`);
+      }
+    };
+
+    await safelyAnchorDemoEvidence(evidence1, "original_cctv.mp4", cases[0].caseNumber, users[0].walletAddress);
+    await safelyAnchorDemoEvidence(evidence2, "fingerprint_examination_report.pdf", cases[0].caseNumber, users[0].walletAddress);
+    await safelyAnchorDemoEvidence(evidence3, "crime_scene_photo.png", cases[0].caseNumber, users[0].walletAddress);
 
     console.log("Seeding custody logs with two-step workflow metadata...");
     await CustodyLog.bulkCreate([
@@ -207,7 +229,8 @@ async function init() {
         transferState: "Completed",
         reason: "Initial evidentiary triage and file hashing",
         evidenceCondition: "Intact / Verified Cryptographic Container",
-        blockchainTxId: null,
+        blockchainTxId: evidence1.blockchainTxId,
+        blockchainStatus: evidence1.blockchainStatus,
         timestamp: new Date(Date.now() - 3600000 * 2.8),
       },
       {
@@ -219,7 +242,8 @@ async function init() {
         transferState: "Completed",
         reason: "Handoff to Digital Forensics Laboratory for deep video metadata extraction",
         evidenceCondition: "Sealed bit-stream disk image container",
-        blockchainTxId: "0xabc123def456abc123def456abc123def456abc123def456abc123def456abc1",
+        blockchainTxId: null,
+        blockchainStatus: "NOT_ANCHORED",
         timestamp: new Date(Date.now() - 3600000 * 2.5),
       },
       {
@@ -231,7 +255,8 @@ async function init() {
         transferState: "Completed",
         reason: "Accepted by forensic examiner. Checksum verified upon physical delivery.",
         evidenceCondition: "Intact / Verified Cryptographic Container",
-        blockchainTxId: "0xabc123def456abc123def456abc123def456abc123def456abc123def456abc1",
+        blockchainTxId: null,
+        blockchainStatus: "NOT_ANCHORED",
         timestamp: new Date(Date.now() - 3600000 * 2.4),
       },
       {
@@ -248,15 +273,56 @@ async function init() {
       {
         evidenceId: evidence3.id,
         actorId: users[0].id, // Alice
-        action: "transferred",
+        action: "viewed",
         previousCustodian: users[0].id,
-        newCustodian: users[2].id, // to Charles
+        newCustodian: users[0].id,
         transferState: "Completed",
-        reason: "Submitted to Clerk of the Court for evidentiary pretrial admissibility hearing",
-        evidenceCondition: "Intact / Verified Cryptographic Container",
-        blockchainTxId: "0xdef789abc012def789abc012def789abc012def789abc012def789abc012def7",
-        timestamp: new Date(Date.now() - 3600000 * 0.8),
+        reason: "Initial crime scene photographic intake and cryptographic validation",
+        evidenceCondition: "Digital Photographic Container #PS-8841-A",
+        blockchainTxId: evidence3.blockchainTxId,
+        blockchainStatus: evidence3.blockchainStatus,
+        timestamp: new Date(Date.now() - 3600000 * 3.8),
       },
+      {
+        evidenceId: evidence3.id,
+        actorId: users[0].id, // Alice
+        action: "transfer_initiated",
+        previousCustodian: users[0].id,
+        newCustodian: users[1].id, // to Bob
+        transferState: "Pending", // PENDING TRANSFER!
+        reason: "Handoff to Forensic Lab for photogrammetric toolmark enhancement",
+        evidenceCondition: "Digital Photographic Container #PS-8841-A",
+        blockchainTxId: null,
+        timestamp: new Date(Date.now() - 3600000 * 0.5),
+      }
+    ]);
+
+    console.log("Seeding verification logs with integrity match and mismatch records...");
+    await VerificationLog.bulkCreate([
+      {
+        evidenceId: evidence1.id,
+        verifiedBy: users[1].id, // Bob
+        submittedHash: videoInfo.hash,
+        originalHash: videoInfo.hash,
+        result: "verified",
+        timestamp: new Date(Date.now() - 3600000 * 2.3)
+      },
+      {
+        evidenceId: evidence1.id,
+        verifiedBy: users[1].id, // Bob
+        submittedHash: "606301cef0aaf3972feb9ab69dd3449e61cec3350a67d9f4a723de29da1597f2", // tampered hash
+        originalHash: videoInfo.hash,
+        result: "tampered", // TAMPER ALERT!
+        timestamp: new Date(Date.now() - 3600000 * 1.8)
+      },
+      {
+        evidenceId: evidence3.id,
+        verifiedBy: users[0].id, // Alice
+        submittedHash: photoInfo.hash,
+        originalHash: photoInfo.hash,
+        result: "verified",
+        timestamp: new Date(Date.now() - 3600000 * 0.7)
+      }
     ]);
 
     console.log("Seeding audit logs...");
@@ -297,7 +363,7 @@ async function init() {
         actorRole: "analyst",
         caseId: cases[0].id,
         evidenceId: evidence1.id,
-        blockchainTxId: "0xabc123def456abc123def456abc123def456abc123def456abc123def456abc1",
+        blockchainTxId: null,
         details: "Forensic Analyst Bob accepted physical custody of surveillance footage",
         timestamp: new Date(Date.now() - 3600000 * 2.4)
       },
@@ -318,7 +384,7 @@ async function init() {
       {
         userId: users[0].id, // Alice
         title: "Custody Handoff Accepted",
-        message: 'Analyst Bob Miller has accepted custody of "evidence_cctv.mp4" for forensic extraction.',
+        message: 'Analyst Bob Miller has accepted custody of "original_cctv.mp4" for forensic extraction.',
         type: "TRANSFER",
         link: `/custody?evidenceId=${evidence1.id}`,
         isRead: false,
@@ -327,7 +393,7 @@ async function init() {
       {
         userId: users[1].id, // Bob
         title: "New Case Assignment",
-        message: 'You have been assigned as Lead Forensic Analyst on Case #PS-2026-001 (Central Bank Vault Intrusion).',
+        message: 'You have been assigned as Lead Forensic Analyst on Case #PS-2026-001 (Residential Burglary Investigation).',
         type: "CASE",
         link: `/cases/${cases[0].id}`,
         isRead: false,
@@ -336,9 +402,9 @@ async function init() {
       {
         userId: users[2].id, // Charles
         title: "Pretrial Evidence Admissibility",
-        message: 'Incoming evidence "emergency_dispatch_call.wav" ready for FRE 902(13)/(14) & BSA Section 63 review.',
+        message: 'Incoming evidence "fingerprint_examination_report.pdf" ready for FRE 902(13)/(14) & BSA Section 63 review.',
         type: "EVIDENCE",
-        link: `/evidence/${evidence3.id}`,
+        link: `/evidence/${evidence2.id}`,
         isRead: true,
         timestamp: new Date(Date.now() - 3600000 * 0.7)
       }

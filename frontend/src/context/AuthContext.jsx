@@ -46,7 +46,12 @@ export const AuthProvider = ({ children }) => {
       setUser(response.data.user);
       return response.data;
     } catch (error) {
-      const errorMsg = error.response?.data?.error || "Login failed. Invalid email or password.";
+      let errorMsg = "Login failed. Invalid email or password.";
+      if (error.response?.data?.error) {
+        errorMsg = error.response.data.error;
+      } else if (error.code === "ERR_NETWORK" || error.message?.toLowerCase().includes("network error")) {
+        errorMsg = "ProofShield Backend API is offline or unreachable on port 5000. Please launch the backend server.";
+      }
       throw new Error(errorMsg);
     }
   };

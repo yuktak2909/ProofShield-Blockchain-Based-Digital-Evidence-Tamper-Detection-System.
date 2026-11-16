@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { Op } = require("sequelize");
-const { Evidence, Case, User, CustodyLog } = require("../models");
+const { Evidence, Case, User, CustodyLog, VerificationLog } = require("../models");
 const hashingService = require("../services/hashing.service");
 const ipfsService = require("../services/ipfs.service");
 const blockchainService = require("../services/blockchain.service");
@@ -17,12 +17,12 @@ exports.registerEvidence = async (req, res) => {
   let evidenceRecord = null;
 
   try {
-    const { 
-      caseId, 
-      evidenceName, 
+    const {
+      caseId,
+      evidenceName,
       category,
-      description, 
-      collectionTimestamp, 
+      description,
+      collectionTimestamp,
       location,
       acquisitionSource,
       acquisitionMethod,
@@ -48,11 +48,15 @@ exports.registerEvidence = async (req, res) => {
     console.log(`Generated SHA-256 hash: ${fileHash}`);
 
     // Step 2: Check duplicate hash in DB
-    const duplicate = await Evidence.findOne({ where: { fileHash, status: "REGISTERED" } });
+    const duplicate = await Evidence.findOne({
+      where: { fileHash, status: "REGISTERED" },
+      include: [{ model: Case, as: "case", attributes: ["caseNumber", "title"] }]
+    });
     if (duplicate) {
       if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
-      return res.status(400).json({ 
-        error: `Duplicate Evidence Detected. This exact payload has already been registered in Case #${duplicate.caseId} under Evidence ID: ${duplicate.id}` 
+      const caseRef = duplicate.case ? `${duplicate.case.caseNumber} (${duplicate.case.title})` : `ID ${duplicate.caseId}`;
+      return res.status(400).json({
+        error: `Duplicate Evidence Detected. This exact bit-stream file has already been registered in ${caseRef} under Evidence ID: ${duplicate.id} (${duplicate.evidenceName}).`
       });
     }
 
@@ -84,7 +88,7 @@ exports.registerEvidence = async (req, res) => {
 
     const ipfsResult = await ipfsService.uploadToIPFS(tempFilePath, fileHash);
     console.log(`Uploaded to IPFS: CID is ${ipfsResult.cid}`);
-    
+
     evidenceRecord.ipfsCid = ipfsResult.cid;
     evidenceRecord.status = "BLOCKCHAIN_PENDING";
     await evidenceRecord.save();
@@ -92,24 +96,80 @@ exports.registerEvidence = async (req, res) => {
     // Step 5: Register hash on Blockchain Smart Contract
     console.log("Registering hash on Ethereum blockchain...");
     const submitterWallet = req.user.walletAddress || "0x0000000000000000000000000000000000000000";
-    
-    let txHash = null;
+
+    let txReceipt = null;
+    let blockchainStatus = "NOT_ANCHORED";
+    let blockchainError = null;
+
     try {
-      txHash = await blockchainService.registerEvidence(
+      await logAudit({
+        category: "BLOCKCHAIN",
+        action: "BLOCKCHAIN_REGISTRATION_INITIATED",
+        actorId: req.user.id,
+        actorRole: req.user.role,
+        caseId: caseItem.id,
+        evidenceId: evidenceRecord.id,
+        ipAddress: req.ip,
+        details: {
+          evidenceName,
+          fileHash,
+          submitterWallet
+        }
+      });
+
+      txReceipt = await blockchainService.registerEvidence(
         evidenceRecord.id,
         fileHash,
         caseItem.caseNumber,
         description || "Forensic asset registered",
         submitterWallet
       );
-      console.log(`Blockchain transaction confirmed. Hash: ${txHash}`);
+      blockchainStatus = "CONFIRMED";
+      console.log(`Blockchain transaction confirmed. Hash: ${txReceipt.txHash}, Block: ${txReceipt.blockNumber}`);
+
+      await logAudit({
+        category: "BLOCKCHAIN",
+        action: "BLOCKCHAIN_REGISTRATION_CONFIRMED",
+        actorId: req.user.id,
+        actorRole: req.user.role,
+        caseId: caseItem.id,
+        evidenceId: evidenceRecord.id,
+        ipAddress: req.ip,
+        blockchainTxId: txReceipt.txHash,
+        details: {
+          blockNumber: txReceipt.blockNumber,
+          gasUsed: txReceipt.gasUsed
+        }
+      });
     } catch (bcErr) {
-      console.warn("Blockchain transaction failed or node unreachable:", bcErr.message);
-      txHash = "0xmock" + Buffer.from(fileHash).toString("hex").substring(0, 58);
+      blockchainStatus = "FAILED";
+      blockchainError = bcErr.message || "Ethereum smart contract transaction failed or node unreachable";
+      console.warn("Blockchain transaction failed:", blockchainError);
+
+      await logAudit({
+        category: "BLOCKCHAIN",
+        action: "BLOCKCHAIN_REGISTRATION_FAILED",
+        actorId: req.user.id,
+        actorRole: req.user.role,
+        caseId: caseItem.id,
+        evidenceId: evidenceRecord.id,
+        ipAddress: req.ip,
+        status: "WARNING",
+        details: {
+          error: blockchainError,
+          reason: "Ethereum node offline or smart contract revert. Exhibit retained in database for retry anchoring."
+        }
+      });
     }
 
     // Step 6: Update database status to REGISTERED
-    evidenceRecord.blockchainTxId = txHash;
+    evidenceRecord.blockchainTxId = txReceipt ? txReceipt.txHash : null;
+    evidenceRecord.blockchainBlockNumber = txReceipt ? txReceipt.blockNumber : null;
+    evidenceRecord.blockchainAnchoredAt = txReceipt ? new Date() : null;
+    evidenceRecord.blockchainStatus = blockchainStatus;
+    if (txReceipt && txReceipt.chainId) evidenceRecord.blockchainChainId = txReceipt.chainId;
+    if (txReceipt && txReceipt.contractAddress) evidenceRecord.blockchainContractAddress = txReceipt.contractAddress;
+    if (txReceipt && txReceipt.genesisHash) evidenceRecord.blockchainGenesisHash = txReceipt.genesisHash;
     evidenceRecord.status = "REGISTERED";
     await evidenceRecord.save();
 
@@ -122,7 +182,8 @@ exports.registerEvidence = async (req, res) => {
       newCustodian: req.user.id,
       transferState: "Completed",
       evidenceCondition: "Intact / Verified Cryptographic Container",
-      blockchainTxId: txHash,
+      blockchainTxId: txReceipt ? txReceipt.txHash : null,
+      blockchainStatus: blockchainStatus,
       timestamp: new Date()
     });
 
@@ -135,12 +196,13 @@ exports.registerEvidence = async (req, res) => {
       caseId: caseItem.id,
       evidenceId: evidenceRecord.id,
       ipAddress: req.ip,
-      blockchainTxId: txHash,
+      blockchainTxId: txReceipt ? txReceipt.txHash : null,
       details: {
         evidenceName,
         fileHash,
         fileSize: req.file.size,
-        ipfsCid: ipfsResult.cid
+        ipfsCid: ipfsResult.cid,
+        blockchainStatus
       }
     });
 
@@ -149,7 +211,7 @@ exports.registerEvidence = async (req, res) => {
       await createNotification({
         userId: caseItem.assignedInvestigatorId,
         title: "New Evidence Registered",
-        message: `Evidence "${evidenceName}" was registered in Case ${caseItem.caseNumber}.`,
+        message: `Evidence "${evidenceName}" was registered in Case ${caseItem.caseNumber}. Blockchain Status: ${blockchainStatus}.`,
         type: "EVIDENCE",
         link: `/evidence/${evidenceRecord.id}`
       });
@@ -161,13 +223,17 @@ exports.registerEvidence = async (req, res) => {
     }
 
     return res.status(201).json({
-      message: "Evidence registered and cryptographically sealed successfully.",
+      message: blockchainStatus === "CONFIRMED"
+        ? "Evidence registered and cryptographically anchored to Ethereum smart contract successfully."
+        : "Evidence registered in ProofShield database. Blockchain anchoring could not be confirmed (Ethereum node standby or contract error). Use the 'Anchor Exhibit' action to retry.",
+      blockchainStatus,
+      blockchainError,
       evidence: evidenceRecord
     });
 
   } catch (error) {
     console.error("Evidence registration pipeline failed:", error);
-    
+
     if (fs.existsSync(tempFilePath)) {
       fs.unlinkSync(tempFilePath);
     }
@@ -177,29 +243,31 @@ exports.registerEvidence = async (req, res) => {
       await evidenceRecord.save();
     }
 
-    return res.status(500).json({ 
+    return res.status(500).json({
       error: "Evidence registration pipeline failed: " + error.message,
-      evidence: evidenceRecord 
+      evidence: evidenceRecord
     });
   }
 };
 
 exports.getEvidence = async (req, res) => {
   try {
-    const { caseId, status, fileType, retentionStatus, search } = req.query;
-    
+    const { caseId, status, fileType, retentionStatus, custodianId, integrityStatus, search } = req.query;
+
     const where = {};
     if (caseId) where.caseId = caseId;
     if (status) where.status = status;
     if (retentionStatus) where.retentionStatus = retentionStatus;
+    if (custodianId) where.currentCustodian = custodianId;
     if (fileType) where.fileType = { [Op.like]: `${fileType}%` };
-    
+
     if (search) {
       where[Op.or] = [
         { id: { [Op.like]: `%${search}%` } },
         { evidenceName: { [Op.like]: `%${search}%` } },
         { fileHash: { [Op.like]: `%${search}%` } },
-        { ipfsCid: { [Op.like]: `%${search}%` } }
+        { ipfsCid: { [Op.like]: `%${search}%` } },
+        { category: { [Op.like]: `%${search}%` } }
       ];
     }
 
@@ -208,13 +276,39 @@ exports.getEvidence = async (req, res) => {
       include: [
         { model: Case, as: "case", attributes: ["id", "caseNumber", "title", "status"] },
         { model: User, as: "submitter", attributes: ["name", "email"] },
-        { model: User, as: "custodian", attributes: ["name", "email", "walletAddress"] },
-        { model: User, as: "legalHoldUser", attributes: ["name", "email"] }
+        { model: User, as: "custodian", attributes: ["id", "name", "email", "walletAddress"] },
+        { model: User, as: "legalHoldUser", attributes: ["name", "email"] },
+        {
+          model: VerificationLog,
+          as: "verificationLogs",
+          attributes: ["id", "result", "timestamp"],
+          separate: true,
+          order: [["timestamp", "DESC"]]
+        }
       ],
       order: [["submittedAt", "DESC"]]
     });
 
-    return res.status(200).json(evidence);
+    // Augment with integrityStatus based on genuine verification records
+    const enriched = evidence.map(ev => {
+      const plain = ev.toJSON();
+      const logs = plain.verificationLogs || [];
+      if (logs.length > 0) {
+        plain.integrityStatus = logs[0].result === "verified" ? "Hash Match" : "Hash Mismatch";
+        plain.lastVerifiedAt = logs[0].timestamp;
+      } else {
+        plain.integrityStatus = "Not Yet Verified";
+        plain.lastVerifiedAt = null;
+      }
+      return plain;
+    });
+
+    let filtered = enriched;
+    if (integrityStatus) {
+      filtered = filtered.filter(item => item.integrityStatus === integrityStatus);
+    }
+
+    return res.status(200).json(filtered);
   } catch (error) {
     console.error("Get evidence list error:", error);
     return res.status(500).json({ error: "Failed to retrieve evidence list." });
@@ -350,66 +444,267 @@ exports.getEvidenceBlockchainInfo = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const evidence = await Evidence.findByPk(id);
+    const evidence = await Evidence.findByPk(id, {
+      include: [
+        { model: Case, as: "case", attributes: ["caseNumber", "title"] },
+        { model: User, as: "submitter", attributes: ["name", "walletAddress"] },
+        { model: User, as: "custodian", attributes: ["name", "walletAddress"] }
+      ]
+    });
     if (!evidence) {
       return res.status(404).json({ error: "Evidence not found in database." });
     }
 
-    if (evidence.status !== "REGISTERED" || !evidence.blockchainTxId) {
-      return res.status(400).json({ error: "Evidence is not yet registered on the blockchain." });
-    }
+    // Diagnostics: Accurately separate Node status, Contract status, and Record presence
+    // Pass existing evidence record to detect chain reset / previous-chain state
+    const onChainCheck = await blockchainService.checkEvidenceOnChainStatus(id, evidence);
 
-    try {
-      const chainData = await blockchainService.getEvidence(id);
-      
-      // Query transaction receipt and current block number from RPC
-      let blockNumber = null;
-      let gasUsed = "21000";
-      let confirmationCount = 1;
-      let txStatus = "CONFIRMED";
-
-      if (blockchainService.provider && !evidence.blockchainTxId.startsWith("0xmock")) {
-        try {
-          const [receipt, currentBlock] = await Promise.all([
-            blockchainService.provider.getTransactionReceipt(evidence.blockchainTxId),
-            blockchainService.provider.getBlockNumber()
-          ]);
-          if (receipt) {
-            blockNumber = receipt.blockNumber;
-            gasUsed = receipt.gasUsed ? receipt.gasUsed.toString() : "85400";
-            confirmationCount = Math.max(1, currentBlock - receipt.blockNumber + 1);
-            txStatus = receipt.status === 1 ? "CONFIRMED" : "REVERTED";
-          }
-        } catch (e) {
-          console.warn("Could not fetch live tx receipt:", e.message);
-        }
+    // If chain reset detected (exhibit was anchored on a previous chain instance):
+    let effectiveBlockchainStatus = evidence.blockchainStatus || "NOT_ANCHORED";
+    if (onChainCheck.recordStatus === "RECORD_PREVIOUS_CHAIN_UNVERIFIABLE") {
+      effectiveBlockchainStatus = "PREVIOUS_CHAIN";
+      // Persist the previous chain status in database without deleting historical txId/blockNumber
+      if (evidence.blockchainStatus === "CONFIRMED") {
+        evidence.blockchainStatus = "PREVIOUS_CHAIN";
+        await evidence.save();
       }
-
-      return res.status(200).json({
-        database: {
-          id: evidence.id,
-          fileHash: evidence.fileHash,
-          ipfsCid: evidence.ipfsCid,
-          blockchainTxId: evidence.blockchainTxId
-        },
-        blockchain: chainData,
-        transaction: {
-          txHash: evidence.blockchainTxId,
-          blockNumber: blockNumber || 12,
-          gasUsed: gasUsed || "85400",
-          confirmations: confirmationCount || 1,
-          status: txStatus
-        }
-      });
-    } catch (chainErr) {
-      return res.status(500).json({ 
-        error: "Failed to query smart contract on-chain. Blockchain node may be offline.",
-        details: chainErr.message 
-      });
+    } else if (onChainCheck.recordStatus === "RECORD_CONFIRMED_ON_CHAIN") {
+      effectiveBlockchainStatus = "CONFIRMED";
     }
+
+    // Query live transaction receipt if an actual transaction hash is recorded
+    let txReceiptData = {
+      txHash: evidence.blockchainTxId || null,
+      blockNumber: evidence.blockchainBlockNumber || null,
+      gasUsed: null,
+      confirmations: null,
+      status: onChainCheck.recordStatus === "RECORD_CONFIRMED_ON_CHAIN"
+        ? "CONFIRMED"
+        : onChainCheck.recordStatus === "RECORD_PREVIOUS_CHAIN_UNVERIFIABLE"
+          ? "PREVIOUS_CHAIN_UNVERIFIABLE"
+          : onChainCheck.recordStatus === "RECORD_NOT_ANCHORED_ON_CHAIN"
+            ? "NOT_ANCHORED"
+            : "UNAVAILABLE",
+      isGenuine: false,
+      isCurrentChain: onChainCheck.recordStatus === "RECORD_CONFIRMED_ON_CHAIN"
+    };
+
+    const hasRealTxHash = evidence.blockchainTxId &&
+      !evidence.blockchainTxId.startsWith("0xmock") &&
+      !evidence.blockchainTxId.startsWith("0x789456") &&
+      !evidence.blockchainTxId.startsWith("0x123456") &&
+      !evidence.blockchainTxId.startsWith("0x998877") &&
+      !evidence.blockchainTxId.startsWith("0x554433");
+
+    if (blockchainService.provider && onChainCheck.nodeStatus === "OPERATIONAL" && hasRealTxHash) {
+      try {
+        const [receipt, currentBlock] = await Promise.all([
+          blockchainService.provider.getTransactionReceipt(evidence.blockchainTxId),
+          blockchainService.provider.getBlockNumber()
+        ]);
+        if (receipt) {
+          txReceiptData = {
+            txHash: evidence.blockchainTxId,
+            blockNumber: receipt.blockNumber,
+            gasUsed: receipt.gasUsed ? receipt.gasUsed.toString() : null,
+            confirmations: Math.max(1, currentBlock - receipt.blockNumber + 1),
+            status: receipt.status === 1 ? "CONFIRMED" : "REVERTED",
+            isGenuine: true,
+            isCurrentChain: true
+          };
+        } else {
+          // Receipt is not found on the currently active chain (chain reset)
+          txReceiptData = {
+            txHash: evidence.blockchainTxId,
+            blockNumber: evidence.blockchainBlockNumber,
+            gasUsed: null,
+            confirmations: null,
+            status: "PREVIOUS_CHAIN_UNVERIFIABLE",
+            isGenuine: true,
+            isCurrentChain: false,
+            note: "Transaction hash recorded historically, but receipt is unavailable on currently connected Ethereum chain."
+          };
+        }
+      } catch (e) {
+        console.warn("Could not query transaction receipt:", e.message);
+      }
+    }
+
+    return res.status(200).json({
+      database: {
+        id: evidence.id,
+        evidenceName: evidence.evidenceName,
+        fileHash: evidence.fileHash,
+        ipfsCid: evidence.ipfsCid,
+        blockchainTxId: evidence.blockchainTxId,
+        blockchainStatus: effectiveBlockchainStatus,
+        blockchainBlockNumber: evidence.blockchainBlockNumber,
+        blockchainAnchoredAt: evidence.blockchainAnchoredAt,
+        blockchainChainId: evidence.blockchainChainId,
+        blockchainContractAddress: evidence.blockchainContractAddress,
+        blockchainGenesisHash: evidence.blockchainGenesisHash
+      },
+      blockchain: onChainCheck.data || null,
+      nodeStatus: onChainCheck.nodeStatus,
+      contractStatus: onChainCheck.contractStatus,
+      recordStatus: onChainCheck.recordStatus,
+      isStaleChain: onChainCheck.isStaleChain || false,
+      networkIdentity: onChainCheck.networkIdentity || null,
+      errorDetails: onChainCheck.error || null,
+      transaction: txReceiptData
+    });
   } catch (error) {
     console.error("Get blockchain record info error:", error);
-    return res.status(500).json({ error: "Failed to query blockchain record details." });
+    return res.status(500).json({ error: "Failed to query blockchain record details: " + error.message });
+  }
+};
+
+/**
+ * Anchors an existing database evidence exhibit to the Ethereum smart contract.
+ * Safe to retry, verifies physical file hash, prevents duplicates, records genuine tx details.
+ */
+exports.anchorEvidenceOnChain = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const evidence = await Evidence.findByPk(id, {
+      include: [
+        { model: Case, as: "case" },
+        { model: User, as: "submitter" }
+      ]
+    });
+    if (!evidence) {
+      return res.status(404).json({ error: "Evidence exhibit not found in database." });
+    }
+
+    // Step 1: Locate physical evidence file to verify integrity before anchoring
+    const possiblePaths = [
+      path.join(ipfsService.IPFS_MOCK_DIR, evidence.ipfsCid || ""),
+      path.join(__dirname, "../../uploads/demo_files", evidence.evidenceName || ""),
+      path.join(__dirname, "../../uploads", evidence.evidenceName || "")
+    ];
+
+    let foundPath = null;
+    for (const p of possiblePaths) {
+      if (evidence.ipfsCid && fs.existsSync(p)) {
+        foundPath = p;
+        break;
+      }
+    }
+
+    if (!foundPath) {
+      const demoPath = path.join(__dirname, "../../uploads/demo_files", evidence.evidenceName);
+      if (fs.existsSync(demoPath)) {
+        foundPath = demoPath;
+      }
+    }
+
+    if (!foundPath) {
+      return res.status(400).json({
+        error: "Physical evidence file could not be located on disk to verify cryptographic hash before on-chain anchoring."
+      });
+    }
+
+    // Step 2: Recalculate SHA-256 and compare with database
+    const recalculatedHash = await hashingService.calculateSHA256(foundPath);
+    if (recalculatedHash.toLowerCase() !== evidence.fileHash.toLowerCase()) {
+      return res.status(409).json({
+        error: `Integrity Mismatch: Recalculated file hash (${recalculatedHash}) does not match registered baseline (${evidence.fileHash}). Anchoring aborted to prevent committing tampered data.`
+      });
+    }
+
+    // Step 3: Check whether evidence is already anchored on-chain
+    const onChainCheck = await blockchainService.checkEvidenceOnChainStatus(evidence.id);
+    if (onChainCheck.nodeStatus !== "OPERATIONAL") {
+      return res.status(503).json({
+        error: "Ethereum JSON-RPC node is currently offline. Start the blockchain node at http://127.0.0.1:8545 to anchor evidence."
+      });
+    }
+    if (onChainCheck.contractStatus !== "OPERATIONAL") {
+      return res.status(503).json({
+        error: "ProofShield smart contract is unavailable or not deployed at configured address."
+      });
+    }
+
+    if (onChainCheck.recordStatus === "RECORD_CONFIRMED_ON_CHAIN") {
+      evidence.blockchainStatus = "CONFIRMED";
+      if (!evidence.blockchainAnchoredAt) evidence.blockchainAnchoredAt = new Date();
+      await evidence.save();
+
+      return res.status(200).json({
+        message: "Evidence is already anchored on the Ethereum smart contract. Database index synchronized.",
+        evidence,
+        onChainData: onChainCheck.data
+      });
+    }
+
+    // Step 4: Execute genuine smart contract registration
+    const submitterWallet = evidence.submitter?.walletAddress || req.user?.walletAddress || "0x0000000000000000000000000000000000000000";
+    const caseRef = evidence.case?.caseNumber || "CASE-FILE";
+    const desc = evidence.description || "Forensic asset anchored";
+
+    console.log(`Executing on-chain anchoring for exhibit ${evidence.id} (${evidence.evidenceName})...`);
+
+    await logAudit({
+      category: "BLOCKCHAIN",
+      action: "BLOCKCHAIN_REGISTRATION_INITIATED",
+      actorId: req.user.id,
+      actorRole: req.user.role,
+      caseId: evidence.caseId,
+      evidenceId: evidence.id,
+      ipAddress: req.ip,
+      details: {
+        action: "ON_DEMAND_ANCHORING",
+        evidenceName: evidence.evidenceName,
+        fileHash: evidence.fileHash
+      }
+    });
+
+    const txReceipt = await blockchainService.registerEvidence(
+      evidence.id,
+      evidence.fileHash,
+      caseRef,
+      desc,
+      submitterWallet
+    );
+
+    // Step 5: Save genuine transaction details
+    evidence.blockchainTxId = txReceipt.txHash;
+    evidence.blockchainBlockNumber = txReceipt.blockNumber;
+    evidence.blockchainStatus = "CONFIRMED";
+    evidence.blockchainAnchoredAt = new Date();
+    if (txReceipt.chainId) evidence.blockchainChainId = txReceipt.chainId;
+    if (txReceipt.contractAddress) evidence.blockchainContractAddress = txReceipt.contractAddress;
+    if (txReceipt.genesisHash) evidence.blockchainGenesisHash = txReceipt.genesisHash;
+    await evidence.save();
+
+    await logAudit({
+      category: "BLOCKCHAIN",
+      action: "EXISTING_EVIDENCE_ANCHORED",
+      actorId: req.user.id,
+      actorRole: req.user.role,
+      caseId: evidence.caseId,
+      evidenceId: evidence.id,
+      ipAddress: req.ip,
+      blockchainTxId: txReceipt.txHash,
+      details: {
+        blockNumber: txReceipt.blockNumber,
+        gasUsed: txReceipt.gasUsed,
+        anchoredAt: evidence.blockchainAnchoredAt
+      }
+    });
+
+    return res.status(200).json({
+      message: "Evidence exhibit successfully anchored to Ethereum smart contract.",
+      transaction: txReceipt,
+      evidence
+    });
+
+  } catch (error) {
+    console.error("Anchor evidence on-chain error:", error);
+    return res.status(500).json({
+      error: "Failed to anchor evidence to blockchain: " + error.message
+    });
   }
 };
 

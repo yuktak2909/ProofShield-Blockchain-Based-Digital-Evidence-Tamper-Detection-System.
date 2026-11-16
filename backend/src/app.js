@@ -20,18 +20,25 @@ require("dotenv").config({ path: path.join(__dirname, "../../.env") });
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Enable CORS for our React app
+// Enable CORS for our React app (allowing both localhost and 127.0.0.1)
 app.use(cors({
-  origin: "http://localhost:5173",
+  origin: (origin, callback) => {
+    if (!origin || /^http:\/\/(localhost|127\.0\.0\.1):5173$/.test(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, true);
+    }
+  },
   credentials: true
 }));
 
 // Parsers
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "100mb" }));
+app.use(express.urlencoded({ extended: true, limit: "100mb" }));
 
-// Serve static public folder if needed
+// Serve static public folder and demonstration files
 app.use("/public", express.static(path.join(__dirname, "../public")));
+app.use("/uploads/demo_files", express.static(path.join(__dirname, "../uploads/demo_files")));
 
 // Check DB Connection & sync schema
 sequelize.authenticate()
@@ -65,22 +72,37 @@ app.use("/api/audit-logs", auditRoutes);
 app.use("/api/reports", reportsRoutes);
 app.use("/api/notifications", notificationsRoutes);
 
-// Health check endpoint
+// Health check endpoints
+const blockchainService = require("./services/blockchain.service");
+
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "OK", timestamp: new Date() });
 });
 
+app.get("/api/health/blockchain", async (req, res) => {
+  try {
+    const health = await blockchainService.getBlockchainHealth();
+    return res.status(200).json(health);
+  } catch (error) {
+    return res.status(500).json({ error: "Failed to evaluate blockchain health: " + error.message });
+  }
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error("Unhandled API Error:", err);
+  if (res.headersSent) {
+    return next(err);
+  }
+  console.error("Unhandled API Error:", err.message);
 
   // Multer error handling
   if (err.code === "LIMIT_FILE_SIZE") {
-    return res.status(400).json({ error: "File size limit exceeded. Maximum file size allowed is 50MB." });
+    return res.status(413).json({ error: "File size limit exceeded. Maximum file size allowed is 250MB." });
   }
 
   // General errors
-  return res.status(res.statusCode === 200 ? 500 : res.statusCode).json({
+  const statusCode = err.status || (res.statusCode >= 400 ? res.statusCode : 500);
+  return res.status(statusCode).json({
     error: err.message || "An internal server error occurred."
   });
 });

@@ -221,17 +221,54 @@ exports.acceptTransfer = async (req, res) => {
 
     console.log(`Executing custody transfer on blockchain...`);
     let txHash = null;
+    let blockchainStatus = "NOT_ANCHORED";
+    let blockchainError = null;
+
     try {
-      txHash = await blockchainService.transferCustody(id, toWallet, fromWallet);
-      console.log(`Custody transfer confirmed on blockchain: ${txHash}`);
+      const txReceipt = await blockchainService.transferCustody(id, toWallet, fromWallet);
+      txHash = txReceipt.txHash;
+      blockchainStatus = "CONFIRMED";
+      console.log(`Custody transfer confirmed on blockchain: ${txHash}, Block: ${txReceipt.blockNumber}`);
+
+      await logAudit({
+        category: "CUSTODY",
+        action: "CUSTODY_TRANSACTION_CONFIRMED",
+        actorId: req.user.id,
+        actorRole: req.user.role,
+        evidenceId: id,
+        caseId: evidence.caseId,
+        blockchainTxId: txHash,
+        details: {
+          blockNumber: txReceipt.blockNumber,
+          gasUsed: txReceipt.gasUsed,
+          transferredTo: newCustodianUser?.name
+        }
+      });
     } catch (blockchainErr) {
-      console.warn("Blockchain error, falling back to mock hash:", blockchainErr.message);
-      txHash = "0xmock" + Buffer.from(Date.now().toString()).toString("hex") + "00000000000000000000";
+      blockchainStatus = "FAILED";
+      blockchainError = blockchainErr.message;
+      console.warn("Custody transfer on blockchain failed:", blockchainError);
+      txHash = null; // NEVER invent a 0xmock transaction hash
+
+      await logAudit({
+        category: "CUSTODY",
+        action: "CUSTODY_TRANSACTION_FAILED",
+        actorId: req.user.id,
+        actorRole: req.user.role,
+        evidenceId: id,
+        caseId: evidence.caseId,
+        status: "WARNING",
+        details: {
+          error: blockchainError,
+          reason: "Ethereum custody transaction could not be anchored (node offline or exhibit not anchored on-chain). Custody recorded in database."
+        }
+      });
     }
 
     // Update pending log to Completed
     pendingLog.transferState = "Accepted";
     pendingLog.blockchainTxId = txHash;
+    pendingLog.blockchainStatus = blockchainStatus;
     await pendingLog.save();
 
     // Update Evidence Current Custodian
@@ -250,6 +287,7 @@ exports.acceptTransfer = async (req, res) => {
       notes: acceptanceNotes || "Transfer verified and physically received in good condition",
       evidenceCondition: pendingLog.evidenceCondition,
       blockchainTxId: txHash,
+      blockchainStatus: blockchainStatus,
       timestamp: new Date()
     });
 
@@ -263,7 +301,8 @@ exports.acceptTransfer = async (req, res) => {
       blockchainTxId: txHash,
       details: {
         acceptedBy: req.user.name,
-        previousCustodian: previousCustodianUser?.name
+        previousCustodian: previousCustodianUser?.name,
+        blockchainStatus
       }
     });
 

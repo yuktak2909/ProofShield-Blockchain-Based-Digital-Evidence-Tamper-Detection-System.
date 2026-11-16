@@ -51,6 +51,10 @@ const CustodyLog = sequelize.define("CustodyLog", {
     type: DataTypes.STRING,
     allowNull: true,
   },
+  blockchainStatus: {
+    type: DataTypes.STRING,
+    defaultValue: "CONFIRMED", // PENDING, CONFIRMED, FAILED, NOT_ANCHORED
+  },
   timestamp: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,

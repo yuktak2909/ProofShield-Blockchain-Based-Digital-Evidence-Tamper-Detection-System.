@@ -34,8 +34,11 @@ const Cases = () => {
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("ALL");
+  const [filterStatus, setFilterStatus] = useState("ALL");
   const [filterPriority, setFilterPriority] = useState("ALL");
+  const [sortBy, setSortBy] = useState("newest");
 
   // Details state
   const [currentCase, setCurrentCase] = useState(null);
@@ -209,9 +212,21 @@ const Cases = () => {
   };
 
   const filteredCases = cases.filter(c => {
+    if (searchTerm) {
+      const q = searchTerm.toLowerCase();
+      const matchNumber = c.caseNumber?.toLowerCase().includes(q);
+      const matchTitle = c.title?.toLowerCase().includes(q);
+      const matchDesc = c.description?.toLowerCase().includes(q);
+      if (!matchNumber && !matchTitle && !matchDesc) return false;
+    }
     if (filterCategory !== "ALL" && c.category !== filterCategory) return false;
+    if (filterStatus !== "ALL" && c.status !== filterStatus) return false;
     if (filterPriority !== "ALL" && c.priority !== filterPriority) return false;
     return true;
+  }).sort((a, b) => {
+    const timeA = new Date(a.createdAt).getTime();
+    const timeB = new Date(b.createdAt).getTime();
+    return sortBy === "oldest" ? timeA - timeB : timeB - timeA;
   });
 
   // -------------------------------------------------------------
@@ -281,7 +296,7 @@ const Cases = () => {
           <div className="flex border-b border-slate-200 overflow-x-auto text-xs font-bold uppercase tracking-wider bg-slate-50/50">
             {[
               { id: "overview", label: "Overview", icon: FolderLock },
-              { id: "evidence", label: `Evidence Vault (${currentCase.evidenceItems?.length || 0})`, icon: FileCheck },
+              { id: "evidence", label: `Evidence Records (${currentCase.evidenceItems?.length || 0})`, icon: FileCheck },
               { id: "team", label: "Team Members", icon: Users },
               { id: "activities", label: `Activity Log (${activities.length})`, icon: Activity },
               { id: "reports", label: "Forensic Reports", icon: FileText }
@@ -346,7 +361,7 @@ const Cases = () => {
               </div>
             )}
 
-            {/* Tab 2: Evidence Vault */}
+            {/* Tab 2: Evidence Records */}
             {activeTab === "evidence" && (
               <div className="space-y-4">
                 {!currentCase.evidenceItems || currentCase.evidenceItems.length === 0 ? (
@@ -564,58 +579,122 @@ const Cases = () => {
   // -------------------------------------------------------------
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[#E8E4E1] pb-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Case Dossiers</h1>
-          <p className="text-xs text-slate-500">Investigative case files containing sealed digital forensic evidence.</p>
+          <h1 className="text-xl font-bold text-[#343239] tracking-tight">Cases</h1>
+          <p className="text-xs text-[#57515A] mt-0.5">
+            Active investigative case records containing cryptographically sealed digital evidence.
+          </p>
         </div>
 
         {hasRole(["admin", "investigator"]) && (
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg text-sm transition-all shadow-xs cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-2 bg-[#873D50] hover:bg-[#732F40] text-white font-semibold rounded-lg text-xs transition-all shadow-xs cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            Initialize New Case
+            Create New Case
           </button>
         )}
       </div>
 
-      {/* Filter Toolbar */}
-      <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-xs flex flex-wrap gap-4 items-center justify-between text-xs">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-slate-600">Category:</span>
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="bg-slate-50 border border-slate-300 rounded-md px-2.5 py-1.5 text-xs text-slate-800"
-            >
-              <option value="ALL">All Categories</option>
-              <option value="Physical Security Breach & Theft">Physical Security Breach</option>
-              <option value="Corporate Cyber Espionage">Corporate Cyber Espionage</option>
-              <option value="Critical Infrastructure Cyber Incident">Critical Infrastructure</option>
-              <option value="Digital Forensics">Digital Forensics</option>
-            </select>
+      {/* Filter Toolbar with Search & Multi-criteria Selectors */}
+      <div className="bg-white border border-[#E8E4E1] p-4 rounded-xl shadow-xs space-y-3 text-xs">
+        <div className="flex flex-col md:flex-row items-center gap-3">
+          {/* Search Box */}
+          <div className="relative flex-1 w-full">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search cases by Case ID, title, or scenario keywords..."
+              className="w-full bg-slate-50 border border-slate-200 focus:border-blue-600 focus:bg-white rounded-lg px-3.5 py-2 text-xs text-slate-900 focus:outline-none"
+            />
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-slate-600">Priority:</span>
-            <select
-              value={filterPriority}
-              onChange={(e) => setFilterPriority(e.target.value)}
-              className="bg-slate-50 border border-slate-300 rounded-md px-2.5 py-1.5 text-xs text-slate-800"
+          {/* Quick Clear Filter */}
+          {(searchTerm || filterCategory !== "ALL" || filterStatus !== "ALL" || filterPriority !== "ALL") && (
+            <button
+              onClick={() => {
+                setSearchTerm("");
+                setFilterCategory("ALL");
+                setFilterStatus("ALL");
+                setFilterPriority("ALL");
+              }}
+              className="text-xs font-semibold text-blue-700 hover:text-blue-900 px-2 py-1 cursor-pointer shrink-0"
             >
-              <option value="ALL">All Priorities</option>
-              <option value="Critical">Critical</option>
-              <option value="High">High</option>
-              <option value="Medium">Medium</option>
-              <option value="Low">Low</option>
-            </select>
-          </div>
+              Reset Filters
+            </button>
+          )}
         </div>
 
-        <span className="text-slate-400 font-mono text-[11px]">{filteredCases.length} Cases matching filter</span>
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Filter by Category */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase">Category:</span>
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1 text-xs text-slate-800 focus:outline-none"
+              >
+                <option value="ALL">All Categories</option>
+                <option value="Property Crime">Property Crime</option>
+                <option value="Road Traffic Offence">Road Traffic Offence</option>
+                <option value="Cyber / Financial Crime">Cyber / Financial Crime</option>
+                <option value="Digital Forensics">Digital Forensics</option>
+              </select>
+            </div>
+
+            {/* Filter by Status */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase">Status:</span>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1 text-xs text-slate-800 focus:outline-none"
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="Under Investigation">Under Investigation</option>
+                <option value="Open">Open</option>
+                <option value="Pending Review">Pending Review</option>
+                <option value="Closed">Closed</option>
+              </select>
+            </div>
+
+            {/* Filter by Priority */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase">Priority:</span>
+              <select
+                value={filterPriority}
+                onChange={(e) => setFilterPriority(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1 text-xs text-slate-800 focus:outline-none"
+              >
+                <option value="ALL">All Priorities</option>
+                <option value="Critical">Critical</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+              </select>
+            </div>
+
+            {/* Sort Order */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase">Sort:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1 text-xs text-slate-800 focus:outline-none"
+              >
+                <option value="newest">Date Opened (Newest)</option>
+                <option value="oldest">Date Opened (Oldest)</option>
+              </select>
+            </div>
+          </div>
+
+          <span className="text-slate-400 font-mono text-[11px]">{filteredCases.length} {filteredCases.length === 1 ? "case" : "cases"} indexed</span>
+        </div>
       </div>
 
       {error && (
@@ -628,52 +707,85 @@ const Cases = () => {
       {loading ? (
         <div className="py-24 flex flex-col items-center justify-center text-blue-700 font-medium text-xs">
           <div className="w-8 h-8 border-3 border-blue-700 border-t-transparent rounded-full animate-spin mb-3"></div>
-          Retrieving official case dossiers...
+          Retrieving official case records...
         </div>
       ) : filteredCases.length === 0 ? (
-        <div className="py-24 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-500 bg-white">
+        <div className="py-20 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-500 bg-white">
           <FolderLock className="w-12 h-12 text-slate-300 mb-2" />
-          <p className="text-sm font-semibold text-slate-700">No matching cases found in system records.</p>
+          <p className="text-sm font-semibold text-slate-700">No matching cases found.</p>
+          <p className="text-xs text-slate-400 mt-1">Adjust search parameters or initialize a new case file.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredCases.map((c) => (
-            <div key={c.id} className="bg-white border border-slate-200 hover:border-blue-400 hover:shadow-md p-6 rounded-2xl flex flex-col justify-between transition-all group">
+            <div 
+              key={c.id} 
+              className="bg-white border border-[#E8E4E1] hover:border-[#873D50] hover:shadow-md p-5 rounded-xl flex flex-col justify-between transition-all group"
+            >
               <div>
-                <div className="flex justify-between items-start mb-3">
-                  <span className="text-[11px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded">
+                {/* Header row: Case Number & Badges */}
+                <div className="flex justify-between items-start mb-2.5">
+                  <span className="text-xs font-mono font-bold bg-[#F2E2E7] text-[#873D50] border border-[#E5C3CD] px-2.5 py-0.5 rounded shrink-0 whitespace-nowrap">
                     {c.caseNumber}
                   </span>
-                  <span className={`text-[10px] uppercase px-2 py-0.5 rounded border ${getStatusBadge(c.status)}`}>
-                    {c.status}
-                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border whitespace-nowrap ${getStatusBadge(c.status)}`}>
+                      {c.status}
+                    </span>
+                    <span className={`text-[10px] uppercase px-1.5 py-0.5 rounded border whitespace-nowrap ${getPriorityBadge(c.priority)}`}>
+                      {c.priority}
+                    </span>
+                  </div>
                 </div>
-                <h3 className="text-base font-bold text-slate-900 group-hover:text-blue-700 transition-colors mb-2">
+
+                {/* Case Title */}
+                <h3 className="text-sm font-bold text-[#343239] group-hover:text-[#873D50] transition-colors mb-1.5 leading-snug break-all">
                   {c.title}
                 </h3>
-                <p className="text-xs text-slate-600 leading-relaxed mb-4 line-clamp-3">
-                  {c.description || "No case description recorded."}
-                </p>
-                <div className="flex items-center gap-2 mb-4">
-                  <span className={`text-[10px] uppercase px-2 py-0.5 rounded border ${getPriorityBadge(c.priority)}`}>
-                    {c.priority}
-                  </span>
-                  <span className="text-[10px] bg-slate-50 text-slate-600 border border-slate-200 px-2 py-0.5 rounded truncate max-w-[150px]">
+
+                {/* Crime Category Tag */}
+                <div className="mb-2.5 flex items-center gap-2">
+                  <span className="text-[10px] font-semibold bg-[#FAF8F7] text-[#57515A] border border-[#E8E4E1] px-2 py-0.5 rounded">
                     {c.category}
                   </span>
+                  <span className="text-[10px] text-[#8C8490] font-mono">
+                    Opened {new Date(c.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+
+                {/* Short Case Description */}
+                <p className="text-xs text-slate-600 leading-relaxed mb-4 line-clamp-3">
+                  {c.description || "No official case summary recorded."}
+                </p>
+
+                {/* Assigned Personnel */}
+                <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-100 text-[11px] space-y-1 mb-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400 uppercase text-[9px] font-bold">Lead Investigator:</span>
+                    <span className="text-slate-800 font-semibold truncate max-w-[160px]">
+                      {c.assignedInvestigator?.name || c.creator?.name || "Unassigned"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400 uppercase text-[9px] font-bold">Forensic Analyst:</span>
+                    <span className="text-slate-800 font-semibold truncate max-w-[160px]">
+                      {c.assignedAnalyst?.name || "Pending Analyst Assignment"}
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
-                <span className="text-slate-500 font-medium flex items-center gap-1.5">
-                  <FileCheck className="w-4 h-4 text-purple-600" />
-                  {c.evidenceItems?.length || 0} Assets
+              {/* Bottom Actions */}
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                <span className="text-slate-500 font-medium flex items-center gap-1.5 text-[11px]">
+                  <FileCheck className="w-3.5 h-3.5 text-blue-600" />
+                  {c.evidenceItems?.length || 0} Evidence {c.evidenceItems?.length === 1 ? "Item" : "Items"}
                 </span>
                 <Link
                   to={`/cases/${c.id}`}
-                  className="text-blue-700 hover:text-blue-900 font-semibold flex items-center gap-1"
+                  className="text-blue-700 hover:text-blue-900 font-bold flex items-center gap-1 cursor-pointer"
                 >
-                  Open Workspace &rarr;
+                  View Case &rarr;
                 </Link>
               </div>
             </div>
@@ -681,7 +793,7 @@ const Cases = () => {
         </div>
       )}
 
-      {/* Initialize Case Modal */}
+      {/* Create New Case Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-6">
           <div className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl shadow-2xl p-6 relative">
@@ -692,8 +804,8 @@ const Cases = () => {
               <X className="w-5 h-5" />
             </button>
 
-            <h3 className="text-base font-bold text-slate-900 mb-1">Initialize Case Dossier</h3>
-            <p className="text-xs text-slate-500 mb-6">Open an official investigation case file to begin sealing evidence.</p>
+            <h3 className="text-base font-bold text-slate-900 mb-1">Create New Case</h3>
+            <p className="text-xs text-slate-500 mb-5">Open an official investigation case file to begin registering digital evidence.</p>
 
             <form onSubmit={handleCreateCase} className="space-y-4">
               <div>
@@ -702,33 +814,33 @@ const Cases = () => {
                   type="text"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="e.g., Vault Intrusion & Data Tamper Incident"
-                  className="w-full bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white rounded-lg px-4 py-2.5 text-xs text-slate-900 focus:outline-none"
+                  placeholder="e.g., Residential Burglary or Intersection Collision Incident"
+                  className="w-full bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white rounded-lg px-3.5 py-2 text-xs text-slate-900 focus:outline-none"
                   required
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Category</label>
+                  <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Crime Category</label>
                   <select
                     value={newCategory}
                     onChange={(e) => setNewCategory(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs text-slate-900 focus:outline-none"
                   >
-                    <option value="Physical Security Breach & Theft">Physical Security Breach</option>
-                    <option value="Corporate Cyber Espionage">Corporate Cyber Espionage</option>
-                    <option value="Critical Infrastructure Cyber Incident">Critical Infrastructure</option>
+                    <option value="Property Crime">Property Crime</option>
+                    <option value="Road Traffic Offence">Road Traffic Offence</option>
+                    <option value="Cyber / Financial Crime">Cyber / Financial Crime</option>
                     <option value="Digital Forensics">Digital Forensics</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Priority</label>
+                  <label className="text-xs text-slate-700 font-semibold uppercase block mb-1">Initial Priority</label>
                   <select
                     value={newPriority}
                     onChange={(e) => setNewPriority(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 text-xs text-slate-900 focus:outline-none"
                   >
                     <option value="Critical">Critical</option>
                     <option value="High">High</option>
@@ -743,26 +855,26 @@ const Cases = () => {
                 <textarea
                   value={newDesc}
                   onChange={(e) => setNewDesc(e.target.value)}
-                  placeholder="Describe initial dispatch details, scene location, and lead investigator..."
+                  placeholder="Describe initial dispatch details, scene location, and incident background..."
                   rows={4}
-                  className="w-full bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white rounded-lg px-4 py-2.5 text-xs text-slate-900 focus:outline-none resize-none"
+                  className="w-full bg-slate-50 border border-slate-300 focus:border-blue-600 focus:bg-white rounded-lg px-3.5 py-2 text-xs text-slate-900 focus:outline-none resize-none"
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 border border-slate-300 hover:bg-slate-50 rounded-lg text-xs font-semibold text-slate-700"
+                  className="px-4 py-2 border border-slate-300 hover:bg-slate-50 rounded-lg text-xs font-semibold text-slate-700 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={createLoading}
-                  className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg text-xs tracking-wide flex items-center gap-1.5 shadow-xs"
+                  className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg text-xs tracking-wide flex items-center gap-1.5 shadow-xs cursor-pointer"
                 >
-                  {createLoading ? "Creating..." : "Create Case Dossier"}
+                  {createLoading ? "Creating..." : "Create Case"}
                 </button>
               </div>
             </form>

@@ -2,40 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Clean, crisp institutional typography */
+/* Warm Grey & Burgundy Institutional Theme Base */
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  color: #0F172A;
-  background-color: #F8FAFC;
+  color: #343239;
+  background-color: #F5F3F2;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Subtle, clean professional scrollbar */
+/* Refined Warm Tone Professional Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #F1F5F9;
+  background: #EBE7E5;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
+  background: #C7C0BD;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
+  background: #873D50;
 }
 
-/* Official tamper alert border pulsing (subtle warning, not neon) */
+/* Focus and Active Ring Utilities */
+*:focus-visible {
+  outline: 2px solid #873D50 !important;
+  outline-offset: 1px;
+}
+
+/* Official tamper alert border pulsing (subtle warning) */
 @keyframes alert-pulse {
   0%, 100% {
-    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.25);
+    box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.25);
   }
   50% {
-    box-shadow: 0 0 0 6px rgba(220, 38, 38, 0.1);
+    box-shadow: 0 0 0 6px rgba(180, 35, 24, 0.1);
   }
 }
 

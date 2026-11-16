@@ -30,7 +30,9 @@ import {
   HardDrive,
   UserCheck,
   Tag,
-  X
+  X,
+  Check,
+  Copy
 } from "lucide-react";
 
 const EvidenceDetails = () => {
@@ -43,13 +45,16 @@ const EvidenceDetails = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("");
   const [filterRetention, setFilterRetention] = useState("");
+  const [filterIntegrity, setFilterIntegrity] = useState("");
+  const [filterCustodian, setFilterCustodian] = useState("");
   const [listLoading, setListLoading] = useState(true);
+  const [copiedHash, setCopiedHash] = useState(null);
 
   // Single Item Details State
   const [evidence, setEvidence] = useState(null);
   const [dbHistory, setDbHistory] = useState([]);
   const [verificationLogs, setVerificationLogs] = useState([]);
-  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailsLoading, setDetailsLoading] = useState(Boolean(id));
   const [activeTab, setActiveTab] = useState("custody"); // custody, verifications, specs
 
   // Transfer Modal State (Two-Step Workflow)
@@ -76,6 +81,7 @@ const EvidenceDetails = () => {
   const [pendingLogToReject, setPendingLogToReject] = useState(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [rejectLoading, setRejectLoading] = useState(false);
+  const [anchorLoading, setAnchorLoading] = useState(false);
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -89,22 +95,44 @@ const EvidenceDetails = () => {
         params: {
           search: searchTerm,
           fileType: filterType,
-          retentionStatus: filterRetention
+          retentionStatus: filterRetention,
+          integrityStatus: filterIntegrity,
+          custodianId: filterCustodian
         }
       });
-      setEvidenceList(response.data);
+      setEvidenceList(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
-      console.error("Failed to load evidence catalog");
+      console.error("Failed to load evidence catalog:", err);
+      setEvidenceList([]);
     } finally {
       setListLoading(false);
     }
   };
 
   useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        const res = await axios.get("/api/admin/users");
+        setUsers(Array.isArray(res.data) ? res.data : []);
+      } catch (e) {
+        setUsers([]);
+      }
+    };
+    loadUsers();
+  }, []);
+
+  useEffect(() => {
     if (!id) {
       fetchEvidenceList();
     }
-  }, [id, searchTerm, filterType, filterRetention]);
+  }, [id, searchTerm, filterType, filterRetention, filterIntegrity, filterCustodian]);
+
+  const handleCopyHash = (hash, e) => {
+    if (e) e.stopPropagation();
+    navigator.clipboard.writeText(hash);
+    setCopiedHash(hash);
+    setTimeout(() => setCopiedHash(null), 2000);
+  };
 
   // -------------------------------------------------------------
   // FETCH SINGLE DETAIL DATA
@@ -160,7 +188,7 @@ const EvidenceDetails = () => {
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(res.data, null, 2));
       const downloadAnchor = document.createElement("a");
       downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", `Chain_of_Custody_Certificate_${evidence.id.substring(0,8)}.json`);
+      downloadAnchor.setAttribute("download", `Chain_of_Custody_Certificate_${String(evidence.id).substring(0,8)}.json`);
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
@@ -176,7 +204,8 @@ const EvidenceDetails = () => {
     setTransferNotes("");
     try {
       const response = await axios.get("/api/admin/users");
-      const otherUsers = response.data.filter(u => u.id !== user.id);
+      const list = Array.isArray(response.data) ? response.data : [];
+      const otherUsers = list.filter(u => u.id !== user?.id);
       setUsers(otherUsers);
     } catch (err) {
       setTransferError("Could not retrieve system users list.");
@@ -245,6 +274,20 @@ const EvidenceDetails = () => {
     }
   };
 
+  const handleAnchorEvidence = async () => {
+    if (!evidence) return;
+    setAnchorLoading(true);
+    try {
+      const res = await axios.post(`/api/evidence/${evidence.id}/anchor`);
+      alert(res.data.message || "Exhibit successfully anchored to Ethereum smart contract!");
+      setRefreshTrigger(p => p + 1);
+    } catch (err) {
+      alert(err.response?.data?.error || "Anchoring failed.");
+    } finally {
+      setAnchorLoading(false);
+    }
+  };
+
   const handleToggleLegalHold = async (e) => {
     e.preventDefault();
     if (!legalHoldReason) return;
@@ -309,7 +352,7 @@ const EvidenceDetails = () => {
           className="flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-blue-700 transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Evidence Vault Catalog
+          Back to Evidence Records
         </button>
 
         {/* Pending Transfer Alert Banner (if applicable) */}
@@ -371,41 +414,50 @@ const EvidenceDetails = () => {
         )}
 
         {/* Dossier Header Card */}
-        <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-2xl shadow-xs flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-          <div className="flex items-start gap-4">
-            <div className="h-14 w-14 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-center text-blue-700 flex-shrink-0">
+        <div className="bg-white border border-[#E8E4E1] p-6 md:p-8 rounded-2xl shadow-xs flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+          <div className="flex items-start gap-4 min-w-0 flex-1">
+            <div className="h-14 w-14 bg-[#F2E2E7] border border-[#E5C3CD] rounded-xl flex items-center justify-center text-[#873D50] shrink-0">
               {isVideo ? <Video className="w-7 h-7" /> : isAudio ? <Music className="w-7 h-7" /> : isPdf ? <FileText className="w-7 h-7" /> : <FileCheck className="w-7 h-7" />}
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                <span className="text-[10px] font-mono font-bold uppercase bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded">
+                <span className="text-[10px] font-mono font-bold uppercase bg-[#F2E2E7] text-[#873D50] border border-[#E5C3CD] px-2 py-0.5 rounded shrink-0 whitespace-nowrap">
                   {evidence.case?.caseNumber || "CASE"}
                 </span>
-                <span className="text-[10px] font-mono uppercase bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded font-semibold">
+                <span className="text-[10px] font-mono uppercase bg-[#EDFDF5] text-[#087443] border border-[#A6F4C5] px-2 py-0.5 rounded font-semibold shrink-0 whitespace-nowrap">
                   STATUS: {evidence.status}
                 </span>
-                <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded font-semibold border ${
+                <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded font-semibold border shrink-0 whitespace-nowrap ${
                   evidence.retentionStatus === "Under Legal Hold"
-                    ? "bg-purple-50 text-purple-700 border-purple-200"
-                    : "bg-slate-100 text-slate-700 border-slate-200"
+                    ? "bg-[#F9F5FF] text-[#6941C6] border-[#E9D7FE]"
+                    : "bg-[#FAF8F7] text-[#57515A] border-[#E8E4E1]"
                 }`}>
                   RETENTION: {evidence.retentionStatus || "Active"}
                 </span>
-              </div>
-              <h2 className="text-xl font-bold text-slate-900">{evidence.evidenceName}</h2>
-              <div className="flex flex-wrap items-center gap-4 mt-2 text-xs text-slate-500 font-medium">
-                <span className="flex items-center gap-1">
-                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                  Sealed: {new Date(evidence.submittedAt).toLocaleDateString()}
+                <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded font-semibold border shrink-0 whitespace-nowrap ${
+                  evidence.blockchainStatus === "CONFIRMED"
+                    ? "bg-[#EDFDF5] text-[#087443] border-[#A6F4C5]"
+                    : evidence.blockchainStatus === "FAILED"
+                    ? "bg-[#FEF3F2] text-[#B42318] border-[#FECDCA]"
+                    : "bg-[#FEF6EE] text-[#986000] border-[#FEDF89]"
+                }`}>
+                  BLOCKCHAIN: {evidence.blockchainStatus || (evidence.blockchainTxId ? "CONFIRMED" : "NOT_ANCHORED")}
                 </span>
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-slate-400" />
+              </div>
+              <h2 className="text-xl font-bold text-[#343239] break-all leading-snug">{evidence.evidenceName}</h2>
+              <div className="flex flex-wrap items-center gap-4 mt-2 text-xs text-[#57515A] font-medium">
+                <span className="flex items-center gap-1 shrink-0">
+                  <Calendar className="w-3.5 h-3.5 text-[#8C8490]" />
+                  Sealed: {new Date(evidence.submittedAt || evidence.createdAt || Date.now()).toLocaleDateString()}
+                </span>
+                <span className="flex items-center gap-1 shrink-0">
+                  <MapPin className="w-3.5 h-3.5 text-[#8C8490]" />
                   {evidence.location || "Evidence Locker"}
                 </span>
-                <span className="font-mono text-[11px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
+                <span className="font-mono text-[11px] bg-[#FAF8F7] text-[#343239] px-2 py-0.5 rounded border border-[#E8E4E1] shrink-0 whitespace-nowrap">
                   Size: {(evidence.fileSize / (1024 * 1024)).toFixed(2)} MB
                 </span>
-                <span className="text-[11px] bg-slate-50 text-slate-600 px-2 py-0.5 rounded border border-slate-200">
+                <span className="text-[11px] bg-[#F2E2E7] text-[#873D50] border border-[#E5C3CD] px-2 py-0.5 rounded shrink-0 whitespace-nowrap font-bold">
                   {evidence.category || "Surveillance"}
                 </span>
               </div>
@@ -413,44 +465,57 @@ const EvidenceDetails = () => {
           </div>
 
           {/* Action Bar */}
-          <div className="flex flex-wrap gap-2.5">
+          <div className="flex flex-wrap gap-2.5 shrink-0">
             <button
               onClick={handleDownloadFile}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-semibold rounded-lg text-xs transition-all shadow-xs cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-[#FAF8F7] border border-[#DDD7D2] text-[#343239] font-semibold rounded-lg text-xs transition-all shadow-xs cursor-pointer"
             >
-              <Download className="w-3.5 h-3.5" />
+              <Download className="w-3.5 h-3.5 text-[#57515A]" />
               Download Asset
             </button>
 
             <button
               onClick={handleDownloadCertificate}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-300 font-semibold rounded-lg text-xs transition-all shadow-xs cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-[#FAF8F7] hover:bg-[#F2E2E7]/40 text-[#343239] border border-[#DDD7D2] font-semibold rounded-lg text-xs transition-all shadow-xs cursor-pointer"
             >
-              <FileText className="w-3.5 h-3.5 text-slate-600" />
+              <FileText className="w-3.5 h-3.5 text-[#873D50]" />
               Custody Certificate (PDF)
             </button>
 
             <Link
               to={`/custody?evidenceId=${evidence.id}`}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 font-semibold rounded-lg text-xs transition-all shadow-xs"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-[#F9F5FF] hover:bg-[#F4EBFF] text-[#6941C6] border border-[#E9D7FE] font-semibold rounded-lg text-xs transition-all shadow-xs"
             >
-              <History className="w-3.5 h-3.5 text-purple-600" />
+              <History className="w-3.5 h-3.5 text-[#6941C6]" />
               Chain of Custody
             </Link>
 
             <Link
               to={`/verify?evidenceId=${evidence.id}`}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-xs transition-all shadow-xs"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-[#087443] hover:bg-[#065A34] text-white font-semibold rounded-lg text-xs transition-all shadow-xs"
             >
               <ShieldCheck className="w-3.5 h-3.5" />
               Verify Checksum
             </Link>
+
+            {/* On-Demand Anchor to Ethereum Button */}
+            {evidence.blockchainStatus !== "CONFIRMED" && (
+              <button
+                onClick={handleAnchorEvidence}
+                disabled={anchorLoading}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-[#F2E2E7] hover:bg-[#EBD5DC] text-[#873D50] border border-[#E5C3CD] font-semibold rounded-lg text-xs transition-all shadow-xs cursor-pointer"
+                title="Anchor this exhibit to the Ethereum smart contract"
+              >
+                <Cpu className={`w-3.5 h-3.5 ${anchorLoading ? "animate-spin" : ""}`} />
+                {anchorLoading ? "Anchoring..." : "Anchor to Ethereum"}
+              </button>
+            )}
             
             {/* Custody Transfer Button */}
             {(evidence.currentCustodian === user?.id || user?.role === "admin") && evidence.retentionStatus !== "Under Legal Hold" && (
               <button
                 onClick={openTransferModal}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg text-xs transition-all shadow-xs cursor-pointer"
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-[#873D50] hover:bg-[#732F40] text-white font-semibold rounded-lg text-xs transition-all shadow-xs cursor-pointer"
               >
                 <Send className="w-3.5 h-3.5" />
                 Transfer Custody
@@ -465,7 +530,7 @@ const EvidenceDetails = () => {
                   setLegalHoldReason("");
                   setShowLegalHoldModal(true);
                 }}
-                className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 font-semibold rounded-lg text-xs transition-all shadow-xs cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-2 bg-[#F9F5FF] hover:bg-[#F4EBFF] text-[#6941C6] border border-[#E9D7FE] font-semibold rounded-lg text-xs transition-all shadow-xs cursor-pointer"
               >
                 <Lock className="w-3.5 h-3.5" />
                 Apply Legal Hold
@@ -475,24 +540,24 @@ const EvidenceDetails = () => {
         </div>
 
         {/* EMBEDDED FORENSIC MEDIA VIEWER */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
-          <div className="flex justify-between items-center border-b border-slate-200 pb-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
-              <Eye className="w-4 h-4 text-blue-600" />
+        <div className="bg-white border border-[#E8E4E1] rounded-2xl p-6 shadow-xs space-y-4">
+          <div className="flex justify-between items-center border-b border-[#E8E4E1] pb-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#343239] flex items-center gap-2 font-mono">
+              <Eye className="w-4 h-4 text-[#873D50]" />
               Embedded Forensic Evidence Preview
             </h3>
             <a
               href={fileUrl}
               target="_blank"
               rel="noreferrer"
-              className="text-xs font-semibold text-blue-700 hover:underline flex items-center gap-1"
+              className="text-xs font-semibold text-[#873D50] hover:text-[#732F40] flex items-center gap-1"
             >
               Open Direct Gateway Link
               <ExternalLink className="w-3 h-3" />
             </a>
           </div>
 
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col items-center justify-center">
+          <div className="bg-[#FAF8F7] border border-[#E8E4E1] rounded-xl p-4 flex flex-col items-center justify-center">
             {isGif && (
               <div className="w-full max-w-2xl">
                 <img
@@ -653,22 +718,22 @@ const EvidenceDetails = () => {
           <div className="lg:col-span-8 space-y-6">
             
             {/* Tabs */}
-            <div className="border-b border-slate-200 flex gap-4 text-xs font-bold uppercase tracking-wider">
+            <div className="border-b border-[#E8E4E1] flex gap-4 text-xs font-bold uppercase tracking-wider font-mono">
               <button
                 onClick={() => setActiveTab("custody")}
-                className={`pb-3 cursor-pointer ${activeTab === "custody" ? "border-b-2 border-blue-700 text-blue-700" : "text-slate-500 hover:text-slate-800"}`}
+                className={`pb-3 cursor-pointer ${activeTab === "custody" ? "border-b-2 border-[#873D50] text-[#873D50]" : "text-[#57515A] hover:text-[#343239]"}`}
               >
                 Custody Events ({dbHistory.length})
               </button>
               <button
                 onClick={() => setActiveTab("verifications")}
-                className={`pb-3 cursor-pointer ${activeTab === "verifications" ? "border-b-2 border-blue-700 text-blue-700" : "text-slate-500 hover:text-slate-800"}`}
+                className={`pb-3 cursor-pointer ${activeTab === "verifications" ? "border-b-2 border-[#873D50] text-[#873D50]" : "text-[#57515A] hover:text-[#343239]"}`}
               >
                 Integrity Audits ({verificationLogs.length})
               </button>
               <button
                 onClick={() => setActiveTab("specs")}
-                className={`pb-3 cursor-pointer ${activeTab === "specs" ? "border-b-2 border-blue-700 text-blue-700" : "text-slate-500 hover:text-slate-800"}`}
+                className={`pb-3 cursor-pointer ${activeTab === "specs" ? "border-b-2 border-[#873D50] text-[#873D50]" : "text-[#57515A] hover:text-[#343239]"}`}
               >
                 Forensic Acquisition Specs
               </button>
@@ -1040,65 +1105,127 @@ const EvidenceDetails = () => {
   }
 
   // -------------------------------------------------------------
-  // CATALOG LIST VIEW
+  // CATALOG LIST VIEW (EVIDENCE RECORDS)
   // -------------------------------------------------------------
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-5">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[#E8E4E1] pb-4">
         <div>
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
-            Central Judicial Repository
-          </span>
-          <h2 className="text-2xl font-bold text-slate-900 tracking-tight mt-1">Digital Evidence Vault</h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Cryptographically sealed repository associating searchable case metadata with immutable blockchain transaction proofs.
+          <h1 className="text-xl font-bold text-[#343239] tracking-tight">Evidence Records</h1>
+          <p className="text-xs text-[#57515A] mt-0.5">
+            Searchable central repository of cryptographically sealed digital evidence exhibits.
           </p>
         </div>
 
         <Link
           to="/register"
-          className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg text-xs shadow-xs transition-all flex items-center gap-1.5"
+          className="px-4 py-2 bg-[#873D50] hover:bg-[#732F40] text-white font-semibold rounded-lg text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
         >
           <UploadCloud className="w-4 h-4" />
-          Register Evidence File
+          Register Evidence
         </Link>
       </div>
 
-      {/* Search & Filter Bar */}
-      <div className="bg-white border border-slate-200 p-4 rounded-xl flex flex-col sm:flex-row gap-4 items-center shadow-xs">
-        <div className="relative flex-1 w-full">
+      {/* Multi-Criteria Search & Filter Toolbar */}
+      <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-xs space-y-3 text-xs">
+        {/* Search Bar */}
+        <div className="relative w-full">
           <Search className="absolute left-3.5 top-2.5 w-4 h-4 text-slate-400" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search vault by file name, SHA-256 checksum, or case reference..."
+            placeholder="Search by evidence name, SHA-256 checksum, or case reference..."
             className="w-full bg-slate-50 border border-slate-200 focus:border-blue-600 focus:bg-white rounded-lg pl-10 pr-4 py-2 text-xs text-slate-900 focus:outline-none"
           />
         </div>
-        <div className="w-full sm:w-44">
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 focus:border-blue-600 focus:bg-white rounded-lg px-3 py-2 text-xs text-slate-800"
-          >
-            <option value="">All Formats</option>
-            <option value="video/">Video / CCTV</option>
-            <option value="image/">Photographs</option>
-            <option value="audio/">Audio Recordings</option>
-            <option value="application/pdf">Forensic PDF Reports</option>
-          </select>
-        </div>
-        <div className="w-full sm:w-44">
-          <select
-            value={filterRetention}
-            onChange={(e) => setFilterRetention(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 focus:border-blue-600 focus:bg-white rounded-lg px-3 py-2 text-xs text-slate-800"
-          >
-            <option value="">All Retention</option>
-            <option value="Active">Active</option>
-            <option value="Under Legal Hold">Under Legal Hold</option>
-          </select>
+
+        {/* Filters Row */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Filter by Evidence Type */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase">Type:</span>
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1 text-xs text-slate-800 focus:outline-none"
+              >
+                <option value="">All Types</option>
+                <option value="video/">Video / CCTV</option>
+                <option value="image/">Photographs</option>
+                <option value="audio/">Audio Recordings</option>
+                <option value="application/pdf">PDF / Documents</option>
+              </select>
+            </div>
+
+            {/* Filter by Integrity Status */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase">Integrity:</span>
+              <select
+                value={filterIntegrity}
+                onChange={(e) => setFilterIntegrity(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1 text-xs text-slate-800 focus:outline-none"
+              >
+                <option value="">All Integrity Statuses</option>
+                <option value="Hash Match">Hash Match</option>
+                <option value="Hash Mismatch">Hash Mismatch</option>
+                <option value="Not Yet Verified">Not Yet Verified</option>
+              </select>
+            </div>
+
+            {/* Filter by Retention Status */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase">Retention:</span>
+              <select
+                value={filterRetention}
+                onChange={(e) => setFilterRetention(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1 text-xs text-slate-800 focus:outline-none"
+              >
+                <option value="">All Retention</option>
+                <option value="Active">Active</option>
+                <option value="Under Legal Hold">Under Legal Hold</option>
+              </select>
+            </div>
+
+            {/* Filter by Custodian */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase">Custodian:</span>
+              <select
+                value={filterCustodian}
+                onChange={(e) => setFilterCustodian(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1 text-xs text-slate-800 focus:outline-none"
+              >
+                <option value="">All Custodians</option>
+                {(Array.isArray(users) ? users : []).map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Reset Filters */}
+          {(searchTerm || filterType || filterIntegrity || filterRetention || filterCustodian) && (
+            <button
+              onClick={() => {
+                setSearchTerm("");
+                setFilterType("");
+                setFilterIntegrity("");
+                setFilterRetention("");
+                setFilterCustodian("");
+              }}
+              className="text-xs font-semibold text-blue-700 hover:text-blue-900 cursor-pointer"
+            >
+              Reset Filters
+            </button>
+          )}
+
+          <span className="text-slate-400 font-mono text-[11px]">
+            {Array.isArray(evidenceList) ? evidenceList.length : 0} {(Array.isArray(evidenceList) ? evidenceList.length : 0) === 1 ? "record" : "records"} indexed
+          </span>
         </div>
       </div>
 
@@ -1106,68 +1233,154 @@ const EvidenceDetails = () => {
       {listLoading ? (
         <div className="py-24 flex flex-col items-center justify-center text-blue-700 font-medium text-xs">
           <div className="w-8 h-8 border-3 border-blue-700 border-t-transparent rounded-full animate-spin mb-3"></div>
-          Accessing encrypted catalog...
+          Accessing encrypted evidence catalog...
         </div>
-      ) : evidenceList.length === 0 ? (
-        <div className="py-20 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center text-slate-500 bg-white">
+      ) : !Array.isArray(evidenceList) || evidenceList.length === 0 ? (
+        <div className="py-20 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-500 bg-white">
           <FileCheck className="w-12 h-12 text-slate-300 mb-2" />
-          <p className="text-sm font-semibold text-slate-700">No matching evidence items found.</p>
+          <p className="text-sm font-semibold text-slate-700">No matching evidence records found.</p>
+          <p className="text-xs text-slate-400 mt-1">Try adjusting your search criteria or register new evidence.</p>
         </div>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+        <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/70 text-slate-600 uppercase tracking-wider font-semibold">
-                  <th className="py-3.5 px-6">Evidence File</th>
-                  <th className="py-3.5 px-6">Case Identifier</th>
-                  <th className="py-3.5 px-6">Category</th>
-                  <th className="py-3.5 px-6">Current Custodian</th>
-                  <th className="py-3.5 px-6">Retention</th>
-                  <th className="py-3.5 px-6 text-right">Actions</th>
+                <tr className="border-b border-slate-200 bg-slate-50/80 text-slate-600 uppercase tracking-wider font-semibold text-[11px]">
+                  <th className="py-3 px-4">Evidence Name</th>
+                  <th className="py-3 px-4">Case ID</th>
+                  <th className="py-3 px-4">Evidence Type</th>
+                  <th className="py-3 px-4">Registered On</th>
+                  <th className="py-3 px-4">SHA-256 Hash</th>
+                  <th className="py-3 px-4">Blockchain Anchor</th>
+                  <th className="py-3 px-4">Current Custodian</th>
+                  <th className="py-3 px-4">Integrity Status</th>
+                  <th className="py-3 px-4">Retention Status</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {evidenceList.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-4 px-6 font-semibold text-slate-900">
-                      <div>
+                {(Array.isArray(evidenceList) ? evidenceList : []).map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
+                    {/* 1. Evidence Name */}
+                    <td className="py-3 px-4 font-semibold text-slate-900">
+                      <Link 
+                        to={`/evidence/${item.id}`} 
+                        className="hover:text-blue-700 hover:underline block max-w-xs truncate"
+                        title={item.evidenceName}
+                      >
                         {item.evidenceName}
-                        <span className="block font-mono text-[10px] text-slate-400 mt-0.5">
-                          SHA-256: {item.fileHash.substring(0, 16)}...
-                        </span>
-                      </div>
+                      </Link>
                     </td>
-                    <td className="py-4 px-6 font-mono text-[11px] text-blue-700">
-                      {item.case?.caseNumber || "UNLINKED"}
+
+                    {/* 2. Case ID */}
+                    <td className="py-3 px-4 font-mono text-[11px]">
+                      {item.case ? (
+                        <Link 
+                          to={`/cases/${item.caseId}`}
+                          className="text-blue-700 hover:underline font-bold"
+                          title="View Case"
+                        >
+                          {item.case.caseNumber}
+                        </Link>
+                      ) : (
+                        <span className="text-slate-400">UNLINKED</span>
+                      )}
                     </td>
-                    <td className="py-4 px-6 text-slate-600">
-                      {item.category || "Surveillance"}
+
+                    {/* 3. Evidence Type */}
+                    <td className="py-3 px-4 text-slate-600">
+                      <span className="inline-block bg-slate-50 border border-slate-200 px-2 py-0.5 rounded text-[10px] font-medium">
+                        {item.category || "Surveillance"}
+                      </span>
                     </td>
-                    <td className="py-4 px-6 text-slate-800">
+
+                    {/* 4. Registered On */}
+                    <td className="py-3 px-4 text-slate-500 font-mono text-[11px] whitespace-nowrap">
+                      {new Date(item.submittedAt || item.createdAt || Date.now()).toLocaleDateString()}
+                    </td>
+
+                    {/* 5. SHA-256 Hash */}
+                    <td className="py-3 px-4 font-mono text-[11px]">
+                      <button
+                        onClick={(e) => handleCopyHash(item.fileHash, e)}
+                        className="inline-flex items-center gap-1.5 text-slate-700 hover:text-blue-700 bg-slate-50 hover:bg-slate-100 px-2 py-0.5 rounded border border-slate-200 transition-colors cursor-pointer"
+                        title="Click to copy full SHA-256 fingerprint"
+                      >
+                        <span>{item.fileHash?.substring(0, 10)}...</span>
+                        {copiedHash === item.fileHash ? (
+                          <Check className="w-3 h-3 text-emerald-600 shrink-0" />
+                        ) : (
+                          <Copy className="w-3 h-3 text-slate-400 shrink-0" />
+                        )}
+                      </button>
+                    </td>
+
+                    {/* Blockchain Anchor */}
+                    <td className="py-3 px-4">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold border inline-block whitespace-nowrap ${
+                        item.blockchainStatus === "CONFIRMED"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : item.blockchainStatus === "PREVIOUS_CHAIN"
+                          ? "bg-purple-50 text-purple-700 border-purple-200 font-semibold"
+                          : item.blockchainStatus === "FAILED"
+                          ? "bg-red-50 text-red-700 border-red-200 font-semibold"
+                          : "bg-amber-50 text-amber-700 border-amber-200"
+                      }`}>
+                        {item.blockchainStatus === "CONFIRMED"
+                          ? "ON-CHAIN"
+                          : item.blockchainStatus === "PREVIOUS_CHAIN"
+                          ? "PREVIOUS CHAIN"
+                          : item.blockchainStatus === "FAILED"
+                          ? "FAILED"
+                          : "NOT ANCHORED"}
+                      </span>
+                    </td>
+
+                    {/* 6. Current Custodian */}
+                    <td className="py-3 px-4 text-slate-800 font-medium">
                       {item.custodian?.name || "Evidence Room"}
                     </td>
-                    <td className="py-4 px-6">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+
+                    {/* 7. Integrity Status */}
+                    <td className="py-3 px-4">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border inline-block whitespace-nowrap ${
+                        item.integrityStatus === "Hash Match"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : item.integrityStatus === "Hash Mismatch"
+                          ? "bg-red-50 text-red-700 border-red-200 font-bold"
+                          : "bg-slate-100 text-slate-600 border-slate-200"
+                      }`}>
+                        {item.integrityStatus || "Not Yet Verified"}
+                      </span>
+                    </td>
+
+                    {/* 8. Retention Status */}
+                    <td className="py-3 px-4">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold border inline-block whitespace-nowrap ${
                         item.retentionStatus === "Under Legal Hold"
-                          ? "bg-purple-50 text-purple-700 border border-purple-200"
-                          : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          ? "bg-purple-50 text-purple-700 border-purple-200"
+                          : "bg-blue-50 text-blue-700 border-blue-200"
                       }`}>
                         {item.retentionStatus || "Active"}
                       </span>
                     </td>
-                    <td className="py-4 px-6 text-right space-x-2">
+
+                    {/* 9. Actions */}
+                    <td className="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
                       <Link
                         to={`/custody?evidenceId=${item.id}`}
-                        className="px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded font-semibold text-[11px] transition-all inline-block"
+                        className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded font-semibold text-[11px] transition-all inline-block"
+                        title="View chain of custody log"
                       >
-                        Custody
+                        Custody History
                       </Link>
                       <Link
                         to={`/evidence/${item.id}`}
-                        className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded font-semibold text-[11px] transition-all inline-block"
+                        className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded font-semibold text-[11px] transition-all inline-block"
+                        title="View complete evidence specifications & preview"
                       >
-                        Inspect Dossier &rarr;
+                        View Details &rarr;
                       </Link>
                     </td>
                   </tr>
@@ -1181,4 +1394,48 @@ const EvidenceDetails = () => {
   );
 };
 
-export default EvidenceDetails;
+class EvidenceErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error("Evidence Component Crash:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-6 bg-red-50 border border-red-200 rounded-xl space-y-3 my-4">
+          <div className="flex items-center gap-2 text-red-700 font-bold text-sm">
+            <AlertTriangle className="w-5 h-5 text-red-600" />
+            Evidence Record Viewer Error
+          </div>
+          <p className="text-xs text-red-600">
+            An error occurred while rendering the evidence records.
+          </p>
+          <pre className="p-3 bg-white rounded border border-red-200 text-[11px] text-red-800 font-mono overflow-auto max-h-40">
+            {this.state.error?.message || "Unknown error"}
+          </pre>
+          <button
+            onClick={() => { this.setState({ hasError: false }); window.location.href = "/evidence"; }}
+            className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-semibold cursor-pointer"
+          >
+            Reload Evidence Records
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+const EvidenceDetailsWithErrorBoundary = (props) => (
+  <EvidenceErrorBoundary>
+    <EvidenceDetails {...props} />
+  </EvidenceErrorBoundary>
+);
+
+export default EvidenceDetailsWithErrorBoundary;

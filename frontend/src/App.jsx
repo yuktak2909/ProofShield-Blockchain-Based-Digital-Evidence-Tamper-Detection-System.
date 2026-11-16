@@ -70,6 +70,7 @@ function App() {
             <Route path="custody" element={<ChainOfCustody />} />
             <Route path="blockchain-records" element={<BlockchainRecords />} />
             <Route path="audit-logs" element={<AuditLedger />} />
+            <Route path="system-status" element={<SystemHealth />} />
             <Route path="system-health" element={<SystemHealth />} />
             
             {/* Admin only routes */}

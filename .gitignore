@@ -24,6 +24,12 @@ dist/
 build/
 coverage/
 
+# Databases & Logs
+*.sqlite
+*.sqlite3
+*.log
+blockchain/hardhat_node.log
+
 # Uploads / Evidence storage
 backend/uploads/
 uploads/

@@ -7,44 +7,38 @@ const DEMO_DIR = path.join(__dirname, "../../uploads/demo_files");
 const testSuite = [
   {
     name: "CCTV Surveillance Video",
-    cid: "QmXvideo001",
-    originalFile: "evidence_cctv.mp4",
-    tamperedFile: "evidence_cctv_tampered.mp4"
+    evidenceName: "original_cctv.mp4",
+    originalFile: "original_cctv.mp4",
+    tamperedFile: "original_cctv_tampered.mp4"
+  },
+  {
+    name: "Fingerprint Forensic Report",
+    evidenceName: "fingerprint_examination_report.pdf",
+    originalFile: "fingerprint_examination_report.pdf",
+    tamperedFile: "fingerprint_examination_report_tampered.pdf"
   },
   {
     name: "Crime Scene Photograph",
-    cid: "QmWimage004",
-    originalFile: "crime_scene_photo.jpg",
-    tamperedFile: "crime_scene_photo_tampered.jpg"
-  },
-  {
-    name: "Emergency Audio Recording",
-    cid: "QmZaudio003",
-    originalFile: "dispatch_call.wav",
-    tamperedFile: "dispatch_call_tampered.wav"
-  },
-  {
-    name: "Forensic PDF Report",
-    cid: "QmYpdf002",
-    originalFile: "forensic_report.pdf",
-    tamperedFile: "forensic_report_tampered.pdf"
+    evidenceName: "crime_scene_photo.png",
+    originalFile: "crime_scene_photo.png",
+    tamperedFile: "crime_scene_photo_tampered.png"
   }
 ];
 
 async function runE2ETests() {
   console.log("==========================================================================================");
-  console.log("PROOFSHIELD PHASE 3 — END-TO-END VERIFICATION & TAMPER DETECTION TEST SUITE (4 CATEGORIES)");
+  console.log("PROOFSHIELD — END-TO-END VERIFICATION & TAMPER DETECTION TEST SUITE (CASE PS-2026-001)");
   console.log("==========================================================================================\n");
 
   const results = [];
   let allPassed = true;
 
   for (const test of testSuite) {
-    console.log(`Auditing Category: ${test.name} (CID: ${test.cid})`);
+    console.log(`Auditing Category: ${test.name} (${test.evidenceName})`);
 
-    const evidence = await Evidence.findOne({ where: { ipfsCid: test.cid } });
+    const evidence = await Evidence.findOne({ where: { evidenceName: test.evidenceName } });
     if (!evidence) {
-      console.error(`  [ERROR] Evidence item with CID ${test.cid} not found in database!`);
+      console.error(`  [ERROR] Evidence item ${test.evidenceName} not found in database!`);
       allPassed = false;
       continue;
     }
@@ -90,7 +84,10 @@ async function runE2ETests() {
 }
 
 runE2ETests()
-  .then(() => sequelize.close())
+  .then(async () => {
+    await sequelize.close();
+    process.exit(0);
+  })
   .catch(err => {
     console.error("Test execution failed:", err);
     process.exit(1);

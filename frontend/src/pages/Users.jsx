@@ -119,15 +119,15 @@ const Users = () => {
   const getRoleBadge = (role) => {
     switch (role) {
       case "admin": 
-        return <span className="px-2.5 py-0.5 rounded text-[10px] uppercase font-mono font-bold bg-slate-100 text-slate-800 border border-slate-300">Administrator</span>;
+        return <span className="px-2.5 py-0.5 rounded text-[10px] uppercase font-mono font-bold bg-[#FEF3F2] text-[#B42318] border border-[#FECDCA]">Administrator</span>;
       case "investigator": 
-        return <span className="px-2.5 py-0.5 rounded text-[10px] uppercase font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">Investigator</span>;
+        return <span className="px-2.5 py-0.5 rounded text-[10px] uppercase font-mono font-bold bg-[#F2E2E7] text-[#873D50] border border-[#E5C3CD]">Investigator</span>;
       case "analyst": 
-        return <span className="px-2.5 py-0.5 rounded text-[10px] uppercase font-mono font-bold bg-purple-50 text-purple-700 border border-purple-200">Forensic Analyst</span>;
+        return <span className="px-2.5 py-0.5 rounded text-[10px] uppercase font-mono font-bold bg-[#F9F5FF] text-[#6941C6] border border-[#E9D7FE]">Forensic Analyst</span>;
       case "court": 
-        return <span className="px-2.5 py-0.5 rounded text-[10px] uppercase font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Judicial Official</span>;
+        return <span className="px-2.5 py-0.5 rounded text-[10px] uppercase font-mono font-bold bg-[#EDFDF5] text-[#087443] border border-[#A6F4C5]">Judicial Official</span>;
       default: 
-        return <span className="px-2.5 py-0.5 rounded text-[10px] uppercase font-mono font-bold bg-slate-50 text-slate-600 border border-slate-200">{role}</span>;
+        return <span className="px-2.5 py-0.5 rounded text-[10px] uppercase font-mono font-bold bg-[#FAF8F7] text-[#57515A] border border-[#E8E4E1]">{role}</span>;
     }
   };
 
@@ -135,14 +135,14 @@ const Users = () => {
     <div className="space-y-6">
       
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[#E8E4E1] pb-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Node Clearance & Identity Management</h1>
-          <p className="text-xs text-slate-500">Manage investigator credentials, judicial roles, and connected Ethereum wallet addresses.</p>
+          <h1 className="text-xl font-bold text-[#343239]">Node Clearance & Identity Management</h1>
+          <p className="text-xs text-[#57515A]">Manage investigator credentials, judicial roles, and connected Ethereum wallet addresses.</p>
         </div>
         <button
           onClick={handleOpenCreate}
-          className="flex items-center gap-1.5 px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg text-sm transition-all shadow-xs cursor-pointer"
+          className="flex items-center gap-1.5 px-4 py-2 bg-[#873D50] hover:bg-[#732F40] text-white font-semibold rounded-lg text-sm transition-all shadow-xs cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           Add Authorized User

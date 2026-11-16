@@ -43,6 +43,30 @@ const Evidence = sequelize.define("Evidence", {
     type: DataTypes.STRING,
     allowNull: true,
   },
+  blockchainStatus: {
+    type: DataTypes.STRING,
+    defaultValue: "NOT_ANCHORED", // PENDING, CONFIRMED, FAILED, NOT_ANCHORED, PREVIOUS_CHAIN
+  },
+  blockchainBlockNumber: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  blockchainAnchoredAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  blockchainChainId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  blockchainContractAddress: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  blockchainGenesisHash: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
   submittedAt: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,
